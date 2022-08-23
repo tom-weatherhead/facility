@@ -33,14 +33,11 @@
 /* #include <ctype.h> */
 /* #include <assert.h> */
 
-/* Preprocessor defines */
+#include "boolean.h"
 
-#if !defined(BOOL) && !defined(FALSE) && !defined(TRUE)
-/* Our poor man's Boolean data type: */
-#define BOOL int
-#define FALSE 0
-#define TRUE 1
-#endif
+#include "char-source.h"
+
+/* Preprocessor defines */
 
 /* const int maxStringValueLength = 8; */
 #define maxStringValueLength 8
@@ -284,6 +281,82 @@ etaReduce(): ILCExpression;
 	}
 } */
 
+LC_EXPR * parseExpression(CharSource * cs) {
+	char dstBuf[maxStringValueLength];
+	int c = getNextChar(cs);
+
+	if (c == EOF) {
+		return NULL;
+	/*} else if (c == 'λ') { */ /* error: character too large for enclosing character literal type */
+	} else if (c == '\\') {
+		char argName[maxStringValueLength];
+
+		if (getIdentifier(cs, argName, maxStringValueLength) == 0) {
+			return NULL;
+		}
+
+		/* Consume . */
+
+		if (getIdentifier(cs, dstBuf, maxStringValueLength) == 0 || strcmp(dstBuf, ".")) {
+			fprintf(stderr, "parseExpression() : Error consuming '.'\n");
+			return NULL;
+		}
+
+		LC_EXPR * expr = parseExpression(cs);
+
+		return createLambdaExpr(argName, expr);
+	} else if (c == '(') {
+		LC_EXPR * expr = parseExpression(cs);
+		LC_EXPR * expr2 = parseExpression(cs);
+
+		/* Consume ) */
+
+		if (getIdentifier(cs, dstBuf, maxStringValueLength) == 0 || strcmp(dstBuf, ")")) {
+			fprintf(stderr, "parseExpression() : Error consuming ')'\n");
+			return NULL;
+		}
+
+		return createFunctionCall(expr, expr2);
+	} else {
+		rewindOneChar(cs);
+
+		if (getIdentifier(cs, dstBuf, maxStringValueLength) == 0) {
+			return NULL;
+		}
+
+		return createVariable(dstBuf);
+	}
+}
+
+LC_EXPR * parse(char * str) {
+	printf("\nInput: '%s'\n", str);
+
+	CharSource * cs = createCharSource(str);
+
+	LC_EXPR * parseTree = parseExpression(cs);
+
+	/* LC_EXPR * parseTree = parseExpression(cs, -1);
+
+	LC_EXPR * reducedExpr = reduce(parseTree);
+
+	printf("Output: ");
+	printExpr(reducedExpr);
+
+	freeExpression(reducedExpr);
+	freeExpression(parseTree); */
+	freeCharSource(cs);
+
+	if (parseTree == NULL) {
+		fprintf(stderr, "parse('%s') : parseExpression() returned NULL\n", str);
+	} else {
+		printf("Expr type = %d\nDeBruijn index: ", parseTree->type);
+		printDeBruijnIndex(parseTree, NULL);
+		printf("\n");
+	}
+
+	return parseTree;
+}
+
 /* void parseAndReduce(char * str) {
 	printf("\nInput: '%s'\n", str);
 
@@ -308,6 +381,13 @@ void runTests() {
 	parseAndReduce("(lambda (x) x)"); */ /* The identity function */
 
 	/* parseAndReduce(""); */
+
+	parse("x");
+	parse("\\x.x");
+	parse("(x y)");
+
+	parse("\\x.\\y.x");
+	parse("\\x.\\y.y");
 
 	printf("\nDone.\n\n");
 }
