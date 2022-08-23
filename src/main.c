@@ -588,55 +588,69 @@ LC_EXPR * parseExpression(CharSource * cs) {
 }
 
 LC_EXPR * parse(char * str) {
-	printf("\nInput: '%s'\n", str);
-
 	CharSource * cs = createCharSource(str);
 
 	LC_EXPR * parseTree = parseExpression(cs);
 
-	/* LC_EXPR * parseTree = parseExpression(cs, -1);
-
-	LC_EXPR * reducedExpr = reduce(parseTree);
-
-	printf("Output: ");
-	printExpr(reducedExpr);
-
-	freeExpression(reducedExpr);
-	freeExpression(parseTree); */
 	freeCharSource(cs);
-
-	if (parseTree == NULL) {
-		fprintf(stderr, "parse('%s') : parseExpression() returned NULL\n", str);
-	} else {
-		const int bufSize = 64;
-		char buf[bufSize];
-
-		getDeBruijnIndex(parseTree, buf, bufSize);
-
-		printf("Expr type = %d\nDeBruijn index: %s\n", parseTree->type, buf);
-		/* printDeBruijnIndex(parseTree);
-		printf("\n"); */
-	}
 
 	return parseTree;
 }
 
-/* void parseAndReduce(char * str) {
+void printExpr(LC_EXPR * expr) {
+
+	switch (expr->type) {
+		case lcExpressionType_Variable:
+			printf("%s", expr->name);
+			break;
+
+		case lcExpressionType_LambdaExpr:
+			printf("λ");
+			printf("%s", expr->name);
+			printf(".");
+			printExpr(expr->expr);
+			break;
+
+		case lcExpressionType_FunctionCall:
+			printf("(");
+			printExpr(expr->expr);
+			printf(" ");
+			printExpr(expr->expr2);
+			printf(")");
+			break;
+
+		default:
+			break;
+	}
+}
+
+void parseAndReduce(char * str) {
 	printf("\nInput: '%s'\n", str);
 
-	CharSource * cs = createCharSource(str);
+	LC_EXPR * parseTree = parse(str);
 
-	LC_EXPR * parseTree = parseExpression(cs, -1);
+	/* LC_EXPR * reducedExpr = reduce(parseTree);
 
-	LC_EXPR * reducedExpr = reduce(parseTree);
+	freeExpression(reducedExpr); */
+
+	if (parseTree == NULL) {
+		fprintf(stderr, "parse('%s') : parseExpression() returned NULL\n", str);
+		return;
+	}
 
 	printf("Output: ");
-	printExpr(reducedExpr);
+	printExpr(parseTree);
+	printf("\n");
 
-	freeExpression(reducedExpr);
-	freeExpression(parseTree);
-	freeCharSource(cs);
-} */
+	const int bufSize = 64;
+	char buf[bufSize];
+
+	getDeBruijnIndex(parseTree, buf, bufSize);
+
+	printf("Expr type = %d\nDeBruijn index: %s\n", parseTree->type, buf);
+
+	freeExpr(parseTree);
+}
 
 void runTests() {
 	printf("\nRunning tests...\n");
@@ -646,12 +660,12 @@ void runTests() {
 
 	/* parseAndReduce(""); */
 
-	parse("x");
-	parse("\\x.x");
-	parse("(x y)");
+	parseAndReduce("x");
+	parseAndReduce("\\x.x");
+	parseAndReduce("(x y)");
 
-	parse("\\x.\\y.x");
-	parse("\\x.\\y.y");
+	parseAndReduce("\\x.\\y.x");
+	parseAndReduce("\\x.\\y.y");
 
 	printf("\nDone.\n\n");
 }
