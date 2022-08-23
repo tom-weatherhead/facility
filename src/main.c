@@ -649,6 +649,13 @@ void parseAndReduce(char * str) {
 
 	printf("Expr type = %d\nDeBruijn index: %s\n", parseTree->type, buf);
 
+	LC_EXPR * etaReduction = etaReduce(parseTree);
+
+	printf("Eta reduction: ");
+	printExpr(etaReduction);
+	printf("\n");
+
+	/* freeExpr(etaReduction); -> Some memory may be getting freed twice */
 	freeExpr(parseTree);
 }
 
@@ -666,6 +673,10 @@ void runTests() {
 
 	parseAndReduce("\\x.\\y.x");
 	parseAndReduce("\\x.\\y.y");
+
+	/* Eta-reduction test: */
+	parseAndReduce("\\f.\\x.(f x)"); /* -> \\f.f : Fails to reduce */
+	parseAndReduce("\\x.(f x)"); /* -> f : Succeeds */
 
 	printf("\nDone.\n\n");
 }
