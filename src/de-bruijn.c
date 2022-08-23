@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "boolean.h"
+/* #include "boolean.h" */
 
 #include "types.h"
 
@@ -15,7 +15,7 @@ typedef struct STRING_LIST_STRUCT {
 	struct STRING_LIST_STRUCT * next;
 } STRING_LIST;
 
-int findIndexOfString(char * name, STRING_LIST * boundVariablesList) {
+static int findIndexOfString(char * name, STRING_LIST * boundVariablesList) {
 	int n = 1;
 
 	for (; boundVariablesList != NULL; boundVariablesList = boundVariablesList->next) {
@@ -30,11 +30,11 @@ int findIndexOfString(char * name, STRING_LIST * boundVariablesList) {
 	return 0; /* I.e. the name was not found in the list */
 }
 
-BOOL stringListContains(STRING_LIST * stringList, char * name) {
+/* static BOOL stringListContains(STRING_LIST * stringList, char * name) {
 	return findIndexOfString(name, stringList) > 0;
-}
+} */
 
-STRING_LIST * addStringToList(char * name, STRING_LIST * stringList) {
+static STRING_LIST * addStringToList(char * name, STRING_LIST * stringList) {
 
 	/* if (name != NULL && strlen(name) >= maxStringValueLength - 1) {
 		fprintf(stderr, "addStringToList() : The name '%s' is too long.\n", name);
@@ -51,7 +51,7 @@ STRING_LIST * addStringToList(char * name, STRING_LIST * stringList) {
 
 /* Initially, boundVariablesList will be NULL. */
 
-static void printDeBruijnIndexLocal(LC_EXPR * expr, STRING_LIST * boundVariablesList) {
+/* static void printDeBruijnIndexLocal(LC_EXPR * expr, STRING_LIST * boundVariablesList) {
 	int n = 0;
 	STRING_LIST * newBoundVariablesList = NULL;
 
@@ -91,9 +91,9 @@ static void printDeBruijnIndexLocal(LC_EXPR * expr, STRING_LIST * boundVariables
 
 void printDeBruijnIndex(LC_EXPR * expr) {
 	printDeBruijnIndexLocal(expr, NULL);
-}
+} */
 
-int deBruijnAppendString(char * buf, int bufSize, int i, char * str) {
+static int deBruijnAppendString(char * buf, int bufSize, int i, char * str) {
 	int newi = i + strlen(str);
 
 	if (newi >= bufSize) {
@@ -107,7 +107,7 @@ int deBruijnAppendString(char * buf, int bufSize, int i, char * str) {
 	return newi;
 }
 
-int getDeBruijnIndexLocal(LC_EXPR * expr, char * buf, int bufSize, int i, STRING_LIST * boundVariablesList) {
+static int getDeBruijnIndexLocal(LC_EXPR * expr, char * buf, int bufSize, int i, STRING_LIST * boundVariablesList) {
 	int n = 0;
 	STRING_LIST * newBoundVariablesList = NULL;
 
@@ -157,11 +157,6 @@ int getDeBruijnIndex(LC_EXPR * expr, char * buf, int bufSize) {
 	memset(buf, 0, bufSize);
 
 	return getDeBruijnIndexLocal(expr, buf, bufSize, 0, NULL);
-
-	/* Not yet implemented */
-
-	/* return 0; */
 }
-
 
 /* **** The End **** */

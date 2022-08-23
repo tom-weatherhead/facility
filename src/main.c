@@ -142,7 +142,7 @@ BOOL areEqual(LC_EXPR * expr1, LC_EXPR * expr2) {
 
 	switch (expr1->type) {
 		case lcExpressionType_Variable:
-			return !strcmp(expr1->name, expr2->name) ? TRUE : FALSE;
+			return !strcmp(expr1->name, expr2->name);
 
 		case lcExpressionType_LambdaExpr:
 			return !strcmp(expr1->name, expr2->name) && areEqual(expr1->expr, expr2->expr);
@@ -310,7 +310,13 @@ BOOL isBetaReducible(LC_EXPR * expr) {
 	return FALSE;
 }
 
-LC_EXPR * betaReduce(LC_EXPR * expr) {
+LC_EXPR * betaReduce(LC_EXPR * expr, int maxDepth) {
+
+	if (maxDepth <= 0) {
+		return expr;
+	}
+
+	--maxDepth;
 
 	switch (expr->type) {
 		case lcExpressionType_Variable:
@@ -370,7 +376,6 @@ LC_EXPR * betaReduce(LC_EXPR * expr) {
 				generateNewVariableName: () => string,
 				maxDepth: number
 			): ILCExpression {
-
 
 				if (maxDepth <= 0) {
 					return this;
@@ -436,8 +441,15 @@ LC_EXPR * etaReduce(LC_EXPR * expr) {
 			}
 
 			return this;
+
+			BOOL containsUnboundVariableNamed(LC_EXPR * expr, char * varName, STRING_SET * boundVariableNames)
 			*/
-			return NULL;
+
+			if (expr->expr->type == lcExpressionType_FunctionCall && expr->expr->expr2->type == lcExpressionType_Variable && !strcmp(expr->expr->expr2->name, expr->name) && !containsUnboundVariableNamed(expr->expr->expr, expr->name, NULL)) {
+				return etaReduce(expr->expr->expr);
+			}
+
+			return expr;
 
 		case lcExpressionType_FunctionCall:
 			return createFunctionCall(etaReduce(expr->expr), etaReduce(expr->expr2));
@@ -449,9 +461,9 @@ LC_EXPR * etaReduce(LC_EXPR * expr) {
 	return NULL;
 }
 
-BOOL isIsomorphicTo(LC_EXPR * expr) {
+BOOL areIsomorphic(LC_EXPR * expr1, LC_EXPR * expr2) {
 
-	switch (expr->type) {
+	/* switch (expr->type) {
 		case lcExpressionType_Variable:
 			break;
 
@@ -463,9 +475,16 @@ BOOL isIsomorphicTo(LC_EXPR * expr) {
 
 		default:
 			break;
-	}
+	} */
 
-	return FALSE;
+	const int bufSize = 64;
+	char buf1[bufSize];
+	char buf2[bufSize];
+
+	getDeBruijnIndex(expr1, buf1, bufSize);
+	getDeBruijnIndex(expr2, buf2, bufSize);
+
+	return strlen(buf1) > 0 && !strcmp(buf1, buf2);
 }
 
 /*
@@ -589,9 +608,14 @@ LC_EXPR * parse(char * str) {
 	if (parseTree == NULL) {
 		fprintf(stderr, "parse('%s') : parseExpression() returned NULL\n", str);
 	} else {
-		printf("Expr type = %d\nDeBruijn index: ", parseTree->type);
-		printDeBruijnIndex(parseTree);
-		printf("\n");
+		const int bufSize = 64;
+		char buf[bufSize];
+
+		getDeBruijnIndex(parseTree, buf, bufSize);
+
+		printf("Expr type = %d\nDeBruijn index: %s\n", parseTree->type, buf);
+		/* printDeBruijnIndex(parseTree);
+		printf("\n"); */
 	}
 
 	return parseTree;
