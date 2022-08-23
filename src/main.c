@@ -7,7 +7,7 @@ X applySubstitution is only needed if unify() is implemented
 * containsVariableNamed
 * containsBoundVariableNamed
 * containsUnboundVariableNamed
-substituteForUnboundVariable
+* substituteForUnboundVariable
 getSetOfAllVariableNames
 renameBoundVariable -> α-conversion
 isBetaReducible
@@ -366,6 +366,25 @@ BOOL containsUnboundVariableNamed(LC_EXPR * expr, char * varName, STRING_LIST * 
 	}
 
 	return FALSE;
+}
+
+LC_EXPR * substituteForUnboundVariable(LC_EXPR * expr, char * varName, LC_EXPR * replacementExpr) {
+
+	switch (expr->type) {
+		case lcExpressionType_Variable:
+			return !strcmp(expr->name, varName) ? replacementExpr : expr;
+
+		case lcExpressionType_LambdaExpr:
+			return !strcmp(expr->name, varName) ? expr : createLambdaExpr(expr->name, substituteForUnboundVariable(expr->expr, varName, replacementExpr));
+
+		case lcExpressionType_FunctionCall:
+			return createFunctionCall(substituteForUnboundVariable(expr->expr, varName, replacementExpr), substituteForUnboundVariable(expr->expr2, varName, replacementExpr));
+
+		default:
+			break;
+	}
+
+	return NULL;
 }
 
 /*
