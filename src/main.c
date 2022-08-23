@@ -1,5 +1,44 @@
 /* facility/src/main.c */
 
+/*
+toString
+* equals
+X applySubstitution is only needed if unify() is implemented
+* containsVariableNamed
+* containsBoundVariableNamed
+* containsUnboundVariableNamed
+substituteForUnboundVariable
+getSetOfAllVariableNames
+renameBoundVariable -> α-conversion
+isBetaReducible
+betaReduce
+X deltaReduce
+etaReduce -> Reduce λx.(f x) to f if x does not appear free in f.
+X kappaReduce
+isIsomorphicTo -> compare De Bruijn indices
+*/
+
+/*
+void fn(LC_EXPR * expr) {
+
+	switch (expr->type) {
+		case lcExpressionType_Variable:
+			break;
+
+		case lcExpressionType_LambdaExpr:
+			break;
+
+		case lcExpressionType_FunctionCall:
+			break;
+
+		default:
+			break;
+	}
+
+	return ;
+}
+*/
+
 /* ThAW: Started on 2022-08-22 */
 
 /* To compile and link: $ make */
@@ -157,6 +196,10 @@ int findIndexOfString(char * name, STRING_LIST * boundVariablesList) {
 	return 0; /* I.e. the name was not found in the list */
 }
 
+BOOL stringListContains(STRING_LIST * stringList, char * name) {
+	return findIndexOfString(name, stringList) > 0;
+}
+
 STRING_LIST * addStringToList(char * name, STRING_LIST * stringList) {
 
 	/* if (name != NULL && strlen(name) >= maxStringValueLength - 1) {
@@ -226,6 +269,103 @@ void freeExpr(LC_EXPR * expr) {
 	}
 
 	free(expr);
+}
+
+BOOL areEqual(LC_EXPR * expr1, LC_EXPR * expr2) {
+
+	if (expr1->type != expr2->type) {
+		return FALSE;
+	}
+
+	switch (expr1->type) {
+		case lcExpressionType_Variable:
+			return !strcmp(expr1->name, expr2->name) ? TRUE : FALSE;
+
+		case lcExpressionType_LambdaExpr:
+			return !strcmp(expr1->name, expr2->name) && areEqual(expr1->expr, expr2->expr);
+
+		case lcExpressionType_FunctionCall:
+			return areEqual(expr1->expr, expr2->expr) && areEqual(expr2->expr, expr2->expr2);
+
+		default:
+			break;
+	}
+
+	return FALSE;
+}
+
+BOOL containsVariableNamed(LC_EXPR * expr, char * varName) {
+
+	switch (expr->type) {
+		case lcExpressionType_Variable:
+			return !strcmp(expr->name, varName);
+
+		case lcExpressionType_LambdaExpr:
+			return !strcmp(expr->name, varName) || containsVariableNamed(expr->expr, varName);
+
+		case lcExpressionType_FunctionCall:
+			return containsVariableNamed(expr->expr, varName) || containsVariableNamed(expr->expr2, varName);
+
+		default:
+			break;
+	}
+
+	return FALSE;
+}
+
+BOOL containsBoundVariableNamed(LC_EXPR * expr, char * varName) {
+
+	switch (expr->type) {
+		case lcExpressionType_LambdaExpr:
+			return !strcmp(expr->name, varName) || containsBoundVariableNamed(expr->expr, varName);
+
+		case lcExpressionType_FunctionCall:
+			return containsBoundVariableNamed(expr->expr, varName) || containsBoundVariableNamed(expr->expr2, varName);
+
+		/* case lcExpressionType_Variable: */
+		default:
+			break;
+	}
+
+	return FALSE;
+}
+
+BOOL containsUnboundVariableNamed(LC_EXPR * expr, char * varName, STRING_LIST * boundVariableNames) {
+	BOOL result = FALSE;
+	STRING_LIST * newStringList = NULL;
+
+	switch (expr->type) {
+		case lcExpressionType_Variable:
+			return !strcmp(expr->name, varName) && !stringListContains(boundVariableNames, varName);
+
+		case lcExpressionType_LambdaExpr:
+			/* This lambda expression binds the variable expr->name */
+			/* Create the set: boundVariableNames union { expr->name } */
+
+			if (!stringListContains(boundVariableNames, expr->name)) {
+				newStringList = addStringToList(expr->name, boundVariableNames);
+				boundVariableNames = newStringList;
+			}
+
+			result = containsUnboundVariableNamed(expr->expr, varName, boundVariableNames);
+
+			/* If we allocated any memory by calling addStringToList() above, then free it now */
+
+			if (newStringList != NULL) {
+				newStringList->next = NULL;
+				free(newStringList);
+			}
+
+			return result;
+
+		case lcExpressionType_FunctionCall:
+			return containsUnboundVariableNamed(expr->expr, varName, boundVariableNames) || containsUnboundVariableNamed(expr->expr2, varName, boundVariableNames);
+
+		default:
+			break;
+	}
+
+	return FALSE;
 }
 
 /*
