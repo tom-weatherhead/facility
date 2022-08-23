@@ -9,7 +9,7 @@ X applySubstitution is only needed if unify() is implemented
 * containsUnboundVariableNamed
 * substituteForUnboundVariable
 * getSetOfAllVariableNames
-renameBoundVariable -> α-conversion
+* renameBoundVariable -> α-conversion
 isBetaReducible
 betaReduce
 X deltaReduce
@@ -261,6 +261,31 @@ STRING_SET * getSetOfAllVariableNames(LC_EXPR * expr) {
 
 		case lcExpressionType_FunctionCall:
 			return unionOfStringSets(getSetOfAllVariableNames(expr->expr), getSetOfAllVariableNames(expr->expr2));
+
+		default:
+			break;
+	}
+
+	return NULL;
+}
+
+LC_EXPR * renameBoundVariable(LC_EXPR * expr, char * newName, char * oldName) {
+	/* Also known as α-conversion (alpha conversion) */
+
+	switch (expr->type) {
+		case lcExpressionType_Variable:
+			return expr;
+
+		case lcExpressionType_LambdaExpr:
+
+			if (strcmp(expr->name, oldName)) {
+				return createLambdaExpr(expr->name, renameBoundVariable(expr->expr, newName, oldName));
+			}
+
+			return createLambdaExpr(newName, substituteForUnboundVariable(expr->expr, oldName, createVariable(newName)));
+
+		case lcExpressionType_FunctionCall:
+			return createFunctionCall(renameBoundVariable(expr->expr, newName, oldName), renameBoundVariable(expr->expr2, newName, oldName));
 
 		default:
 			break;
