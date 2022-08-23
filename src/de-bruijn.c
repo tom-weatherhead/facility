@@ -93,4 +93,75 @@ void printDeBruijnIndex(LC_EXPR * expr) {
 	printDeBruijnIndexLocal(expr, NULL);
 }
 
+int deBruijnAppendString(char * buf, int bufSize, int i, char * str) {
+	int newi = i + strlen(str);
+
+	if (newi >= bufSize) {
+		fprintf(stderr, "deBruijnAppendString() error: Not enough buffer space to append '%s' to '%s'\n", str, buf);
+
+		return i;
+	}
+
+	strcpy(buf + i, str);
+
+	return newi;
+}
+
+int getDeBruijnIndexLocal(LC_EXPR * expr, char * buf, int bufSize, int i, STRING_LIST * boundVariablesList) {
+	int n = 0;
+	STRING_LIST * newBoundVariablesList = NULL;
+
+	switch (expr->type) {
+		case lcExpressionType_Variable:
+			n = findIndexOfString(expr->name, boundVariablesList);
+
+			if (n > 0) {
+
+				if (n < 1000 && bufSize - i > 3) {
+					sprintf(buf + i, "%d", n);
+					i = strlen(buf);
+				} else {
+					fprintf(stderr, "getDeBruijnIndexLocal() error: Not enough buffer space to append number '%d' to '%s'\n", n, buf);
+				}
+			} else {
+				i = deBruijnAppendString(buf, bufSize, i, expr->name);
+			}
+
+			break;
+
+		case lcExpressionType_LambdaExpr:
+			i = deBruijnAppendString(buf, bufSize, i, "λ");
+			newBoundVariablesList = addStringToList(expr->name, boundVariablesList);
+			i = getDeBruijnIndexLocal(expr->expr, buf, bufSize, i, newBoundVariablesList);
+			newBoundVariablesList->next = NULL;
+			free(newBoundVariablesList);
+			newBoundVariablesList = NULL;
+			break;
+
+		case lcExpressionType_FunctionCall:
+			i = deBruijnAppendString(buf, bufSize, i, "(");
+			i = getDeBruijnIndexLocal(expr->expr, buf, bufSize, i, boundVariablesList);
+			i = deBruijnAppendString(buf, bufSize, i, " ");
+			i = getDeBruijnIndexLocal(expr->expr2, buf, bufSize, i, boundVariablesList);
+			i = deBruijnAppendString(buf, bufSize, i, ")");
+			break;
+
+		default:
+			break;
+	}
+
+	return i;
+}
+
+int getDeBruijnIndex(LC_EXPR * expr, char * buf, int bufSize) {
+	memset(buf, 0, bufSize);
+
+	return getDeBruijnIndexLocal(expr, buf, bufSize, 0, NULL);
+
+	/* Not yet implemented */
+
+	/* return 0; */
+}
+
+
 /* **** The End **** */

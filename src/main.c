@@ -1,44 +1,5 @@
 /* facility/src/main.c */
 
-/*
-toString
-* equals
-X applySubstitution is only needed if unify() is implemented
-* containsVariableNamed
-* containsBoundVariableNamed
-* containsUnboundVariableNamed
-* substituteForUnboundVariable
-* getSetOfAllVariableNames
-* renameBoundVariable -> α-conversion
-isBetaReducible
-betaReduce
-X deltaReduce
-etaReduce -> Reduce λx.(f x) to f if x does not appear free in f.
-X kappaReduce
-isIsomorphicTo -> compare De Bruijn indices
-*/
-
-/*
-void fn(LC_EXPR * expr) {
-
-	switch (expr->type) {
-		case lcExpressionType_Variable:
-			break;
-
-		case lcExpressionType_LambdaExpr:
-			break;
-
-		case lcExpressionType_FunctionCall:
-			break;
-
-		default:
-			break;
-	}
-
-	return ;
-}
-*/
-
 /* ThAW: Started on 2022-08-22 */
 
 /* To compile and link: $ make */
@@ -79,6 +40,45 @@ void fn(LC_EXPR * expr) {
 #include "char-source.h"
 #include "de-bruijn.h"
 #include "string-set.h"
+
+/*
+toString
+* equals
+X applySubstitution is only needed if unify() is implemented
+* containsVariableNamed
+* containsBoundVariableNamed
+* containsUnboundVariableNamed
+* substituteForUnboundVariable
+* getSetOfAllVariableNames
+* renameBoundVariable -> α-conversion
+* isBetaReducible
+betaReduce
+X deltaReduce
+etaReduce -> Reduce λx.(f x) to f if x does not appear free in f.
+X kappaReduce
+isIsomorphicTo -> compare De Bruijn indices
+*/
+
+/*
+void fn(LC_EXPR * expr) {
+
+	switch (expr->type) {
+		case lcExpressionType_Variable:
+			break;
+
+		case lcExpressionType_LambdaExpr:
+			break;
+
+		case lcExpressionType_FunctionCall:
+			break;
+
+		default:
+			break;
+	}
+
+	return ;
+}
+*/
 
 // **** Create and Free functions ****
 
@@ -292,6 +292,180 @@ LC_EXPR * renameBoundVariable(LC_EXPR * expr, char * newName, char * oldName) {
 	}
 
 	return NULL;
+}
+
+BOOL isBetaReducible(LC_EXPR * expr) {
+
+	switch (expr->type) {
+		case lcExpressionType_LambdaExpr:
+			return isBetaReducible(expr->expr);
+
+		case lcExpressionType_FunctionCall:
+			return expr->expr->type == lcExpressionType_LambdaExpr || isBetaReducible(expr->expr) || isBetaReducible(expr->expr2);
+
+		default:
+			break;
+	}
+
+	return FALSE;
+}
+
+LC_EXPR * betaReduce(LC_EXPR * expr) {
+
+	switch (expr->type) {
+		case lcExpressionType_Variable:
+			return expr;
+
+		case lcExpressionType_LambdaExpr:
+			/*
+			public override betaReduce(options: ILCBetaReductionOptions = {}): ILCExpression {
+				if (typeof options.generateNewVariableName === 'undefined') {
+					throw new Error(
+						'lambda-expression.ts betaReduce() : options.generateNewVariableName is undefined'
+					);
+				}
+
+				let maxDepth = ifDefinedThenElse(options.maxDepth, defaultMaxBetaReductionDepth);
+
+				if (maxDepth <= 0) {
+					return this;
+					// throw new Error('lambda-expression.ts betaReduce() : maxDepth <= 0');
+				}
+
+				maxDepth--;
+
+				const strategy = ifDefinedThenElse(options.strategy, defaultBetaReductionStrategy);
+				const newOptions = {
+					strategy,
+					generateNewVariableName: options.generateNewVariableName,
+					maxDepth
+				};
+
+				// 'redex' means 'reducible expression'.
+				const redex = this.etaReduce();
+
+				if (!isLCLambdaExpression(redex)) {
+					return redex.betaReduce(newOptions);
+				}
+
+				switch (strategy) {
+					case BetaReductionStrategy.CallByName:
+						return redex;
+
+					case BetaReductionStrategy.NormalOrder:
+						return new LCLambdaExpression(redex.arg, redex.body.betaReduce(newOptions));
+
+					case BetaReductionStrategy.CallByValue:
+						return redex;
+				}
+			}
+			*/
+			return NULL;
+
+		case lcExpressionType_FunctionCall:
+			/*
+			/// normal - leftmost outermost; the most popular reduction strategy
+
+			private betaReduceNormalOrder(
+				generateNewVariableName: () => string,
+				maxDepth: number
+			): ILCExpression {
+
+
+				if (maxDepth <= 0) {
+					return this;
+					// throw new Error('call.ts : betaReduceNormalOrder() : maxDepth <= 0');
+				}
+
+				const options = {
+					strategy: BetaReductionStrategy.NormalOrder,
+					generateNewVariableName,
+					maxDepth
+				};
+
+				// First, evaluate this.callee; if it does not evaluate to a LCLambdaExpression,
+				// then return.
+				const evaluatedCallee = this.callee.deltaReduce().betaReduce(options);
+
+				if (!isLCLambdaExpression(evaluatedCallee)) {
+					// The result is App(e1’’, nor e2),
+					// where e1’’ = nor e1’ = ...
+					// and e1’ = nor e1 = evaluatedCallee
+					// and e1 = this.callee
+					const result = new LCFunctionCall(
+						evaluatedCallee.deltaReduce().betaReduce(options),
+						// Note: Simply using 'this.arg' as the second argument fails.
+						this.arg.deltaReduce().betaReduce(options)
+					);
+
+					return result;
+				}
+
+				// Next, substitute this.arg in for the arg in the evaluated callee.
+
+				return this.betaReduceCore(evaluatedCallee, this.arg, generateNewVariableName)
+					.deltaReduce()
+					.betaReduce(options);
+			}
+			*/
+			return NULL;
+
+		default:
+			break;
+	}
+
+	return NULL;
+}
+
+LC_EXPR * etaReduce(LC_EXPR * expr) {
+	/* Reduce λx.(f x) to f if x does not appear free in f. */
+
+	switch (expr->type) {
+		case lcExpressionType_Variable:
+			return expr;
+
+		case lcExpressionType_LambdaExpr:
+			/*
+			if (
+				isLCFunctionCall(this.body) &&
+				isLCVariable(this.body.arg) &&
+				this.body.arg.name === this.arg.name &&
+				!this.body.callee.containsUnboundVariableNamed(this.arg.name, createSet<string>())
+			) {
+				return this.body.callee.etaReduce();
+			}
+
+			return this;
+			*/
+			return NULL;
+
+		case lcExpressionType_FunctionCall:
+			return createFunctionCall(etaReduce(expr->expr), etaReduce(expr->expr2));
+
+		default:
+			break;
+	}
+
+	return NULL;
+}
+
+BOOL isIsomorphicTo(LC_EXPR * expr) {
+
+	switch (expr->type) {
+		case lcExpressionType_Variable:
+			break;
+
+		case lcExpressionType_LambdaExpr:
+			break;
+
+		case lcExpressionType_FunctionCall:
+			break;
+
+		default:
+			break;
+	}
+
+	return FALSE;
 }
 
 /*
