@@ -3,4 +3,6 @@
 /* void printDeBruijnIndex(LC_EXPR * expr); */
 int getDeBruijnIndex(LC_EXPR * expr, char * buf, int bufSize);
 
+void printStringListMemMgrReport();
+
 /* **** The End **** */

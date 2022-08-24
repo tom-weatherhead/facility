@@ -7,6 +7,19 @@
 #include "boolean.h"
 #include "string-set.h"
 
+static int numMallocs = 0;
+static int numFrees = 0;
+
+void printStringSetMemMgrReport() {
+	printf("  String sets: %d mallocs, %d frees", numMallocs, numFrees);
+
+	if (numMallocs > numFrees) {
+		printf(" : **** LEAKAGE ****");
+	}
+
+	printf("\n");
+}
+
 BOOL stringSetContains(STRING_SET * set, char * str) {
 
 	for (; set != NULL; set = set->next) {
@@ -28,6 +41,7 @@ STRING_SET * addStringToSet(char * str, STRING_SET * set) {
 
 	STRING_SET * newSet = (STRING_SET * )malloc(sizeof(STRING_SET));
 
+	++numMallocs;
 	newSet->str = str;
 	newSet->next = set;
 

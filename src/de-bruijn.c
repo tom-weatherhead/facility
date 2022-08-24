@@ -15,6 +15,19 @@ typedef struct STRING_LIST_STRUCT {
 	struct STRING_LIST_STRUCT * next;
 } STRING_LIST;
 
+static int numMallocs = 0;
+static int numFrees = 0;
+
+void printStringListMemMgrReport() {
+	printf("  String lists (de-bruijn.c): %d mallocs, %d frees", numMallocs, numFrees);
+
+	if (numMallocs > numFrees) {
+		printf(" : **** LEAKAGE ****");
+	}
+
+	printf("\n");
+}
+
 static int findIndexOfString(char * name, STRING_LIST * boundVariablesList) {
 	int n = 1;
 
@@ -43,6 +56,7 @@ static STRING_LIST * addStringToList(char * name, STRING_LIST * stringList) {
 
 	STRING_LIST * newStringList = (STRING_LIST *)malloc(sizeof(STRING_LIST));
 
+	++numMallocs;
 	newStringList->str = name;
 	newStringList->next = stringList;
 
@@ -135,6 +149,7 @@ static int getDeBruijnIndexLocal(LC_EXPR * expr, char * buf, int bufSize, int i,
 			i = getDeBruijnIndexLocal(expr->expr, buf, bufSize, i, newBoundVariablesList);
 			newBoundVariablesList->next = NULL;
 			free(newBoundVariablesList);
+			++numFrees;
 			newBoundVariablesList = NULL;
 			break;
 

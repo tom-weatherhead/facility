@@ -8,10 +8,25 @@
 
 #include "char-source.h"
 
+static int numMallocs = 0;
+static int numFrees = 0;
+
+void printCharSourceMemMgrReport() {
+	printf("  Char sources: %d mallocs, %d frees", numMallocs, numFrees);
+
+	if (numMallocs > numFrees) {
+		printf(" : **** LEAKAGE ****");
+	}
+
+	printf("\n");
+}
+
 // **** CharSource functions ****
 
 CharSource * createCharSource(char * str) {
 	CharSource * cs = (CharSource *)malloc(sizeof(CharSource));
+
+	++numMallocs;
 
 	/* TODO? : Clone the string? */
 	cs->str = str;
@@ -25,6 +40,7 @@ CharSource * createCharSource(char * str) {
 void freeCharSource(CharSource * cs) {
 	cs->str = NULL; /* Note bene: We don't call free() here */
 	free(cs);
+	++numFrees;
 }
 
 int getNextChar(CharSource * cs) {

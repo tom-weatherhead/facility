@@ -42,6 +42,9 @@
 #include "de-bruijn.h"
 #include "string-set.h"
 
+static int numMallocs = 0;
+static int numFrees = 0;
+
 // **** Memory manager functions ****
 
 /* TODO: Memory manager version 2:
@@ -74,6 +77,7 @@ BOOL isExprMarked(void * ptr) {
 MEMMGR * createMemoryManager(void (*mark)(void * ptr), void (*unmark)(void * ptr), BOOL (*isMarked)(void * ptr)) {
 	MEMMGR * mm = (MEMMGR *)malloc(sizeof(MEMMGR));
 
+	++numMallocs;
 	mm->mark = mark;
 	mm->unmark = unmark;
 	mm->isMarked = isMarked;
@@ -93,6 +97,24 @@ void initMemoryManagers() {
 }
 
 void terminateMemoryManagers() {
+
+	if (exprMemMgr != NULL) {
+		free(exprMemMgr);
+		exprMemMgr = NULL;
+		++numFrees;
+	}
+
+	printf("\nMemory management report:\n");
+	printf("  Expressions: %d mallocs, %d frees", numMallocs, numFrees);
+
+	if (numMallocs > numFrees) {
+		printf(" : **** LEAKAGE ****");
+	}
+
+	printf("\n");
+	printCharSourceMemMgrReport();
+	printStringSetMemMgrReport();
+	printStringListMemMgrReport();
 }
 
 // **** Memory manager version 1 ****
@@ -148,6 +170,7 @@ void freeUnmarkedStructs() {
 			mmRec->expr->expr = NULL;
 			mmRec->expr->expr2 = NULL;
 			free(mmRec->expr);
+			++numFrees;
 			mmRec->expr = NULL;
 
 			/* Then free mmRec, preserving the integrity of the linked list */
@@ -156,6 +179,7 @@ void freeUnmarkedStructs() {
 			mmRec->expr = NULL;
 			mmRec->next = NULL;
 			free(mmRec);
+			++numFrees;
 			*ppmmRec = nextmmRec;
 		} else {
 			ppmmRec = &mmRec->next;
@@ -193,6 +217,7 @@ LC_EXPR * createExpr(int type, char * name, LC_EXPR * expr, LC_EXPR * expr2) {
 
 	LC_EXPR * newExpr = (LC_EXPR *)malloc(sizeof(LC_EXPR));
 
+	++numMallocs;
 	newExpr->mark = 0;
 	newExpr->type = type;
 	memset(newExpr->name, 0, maxStringValueLength);
@@ -207,6 +232,7 @@ LC_EXPR * createExpr(int type, char * name, LC_EXPR * expr, LC_EXPR * expr2) {
 	/* TODO: Add newExpr to memmgrRecords */
 	MEMMGR_RECORD * mmRec = (MEMMGR_RECORD *)malloc(sizeof(MEMMGR_RECORD));
 
+	++numMallocs;
 	mmRec->expr = newExpr;
 	mmRec->next = memmgrRecords;
 	memmgrRecords = mmRec;
@@ -248,6 +274,7 @@ void freeExpr(LC_EXPR * expr) {
 	expr->expr = NULL;
 	expr->expr2 = NULL;
 	free(expr);
+	++numFrees;
 }
 
 /* ---- */
@@ -335,6 +362,7 @@ BOOL containsUnboundVariableNamed(LC_EXPR * expr, char * varName, STRING_SET * b
 			if (newStringSet != NULL) {
 				newStringSet->next = NULL;
 				free(newStringSet);
+				++numFrees;
 			}
 
 			return result;

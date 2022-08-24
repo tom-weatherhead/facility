@@ -12,4 +12,6 @@ int getNextChar(CharSource * cs);
 void rewindOneChar(CharSource * cs);
 int getIdentifier(CharSource * cs, char * dstBuf, int dstBufSize);
 
+void printCharSourceMemMgrReport();
+
 /* **** The End **** */
