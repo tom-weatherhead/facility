@@ -5,6 +5,7 @@
 /* To compile and link: $ make */
 /* To run: $ ./facility */
 /* To remove all build products: $ make clean */
+/* To do all of the above: $ make clean && make && ./facility */
 
 /* The grammar of the Lambda Calculus:
  * expression := variable
@@ -41,48 +42,147 @@
 #include "de-bruijn.h"
 #include "string-set.h"
 
-/*
-toString
-* equals
-X applySubstitution is only needed if unify() is implemented
-* containsVariableNamed
-* containsBoundVariableNamed
-* containsUnboundVariableNamed
-* substituteForUnboundVariable
-* getSetOfAllVariableNames
-* renameBoundVariable -> α-conversion
-* isBetaReducible
-betaReduce
-X deltaReduce
-etaReduce -> Reduce λx.(f x) to f if x does not appear free in f.
-X kappaReduce
-isIsomorphicTo -> compare De Bruijn indices
+// **** Memory manager functions ****
+
+/* TODO: Memory manager version 2:
+
+typedef struct MEMMGR_RECORD_STRUCT {
+	void * ptr;
+	struct MEMMGR_RECORD_STRUCT * next;
+} MEMMGR_RECORD;
 */
 
-/*
-void fn(LC_EXPR * expr) {
+typedef struct {
+	void (*mark)(void * ptr);
+	void (*unmark)(void * ptr);
+	BOOL (*isMarked)(void * ptr);
+	/* MEMMGR_RECORD * memmgrRecords; */
+} MEMMGR;
 
-	switch (expr->type) {
-		case lcExpressionType_Variable:
-			break;
+void markExpr(void * ptr) {
+	((LC_EXPR *)ptr)->mark = 1;
+}
 
-		case lcExpressionType_LambdaExpr:
-			break;
+void unmarkExpr(void * ptr) {
+	((LC_EXPR *)ptr)->mark = 0;
+}
 
-		case lcExpressionType_FunctionCall:
-			break;
+BOOL isExprMarked(void * ptr) {
+	return ((LC_EXPR *)ptr)->mark != 0;
+}
 
-		default:
-			break;
+MEMMGR * createMemoryManager(void (*mark)(void * ptr), void (*unmark)(void * ptr), BOOL (*isMarked)(void * ptr)) {
+	MEMMGR * mm = (MEMMGR *)malloc(sizeof(MEMMGR));
+
+	mm->mark = mark;
+	mm->unmark = unmark;
+	mm->isMarked = isMarked;
+	/* mm->memmgrRecords = NULL; */
+
+	return mm;
+}
+
+MEMMGR * exprMemMgr = NULL;
+MEMMGR * stringListMemMgr = NULL;
+MEMMGR * stringSetMemMgr = NULL;
+
+void initMemoryManagers() {
+	exprMemMgr = createMemoryManager(markExpr, unmarkExpr, isExprMarked);
+	/* stringListMemMgr = createMemoryManager(...);
+	stringSetMemMgr = createMemoryManager(...); */
+}
+
+void terminateMemoryManagers() {
+}
+
+// **** Memory manager version 1 ****
+
+typedef struct MEMMGR_RECORD_STRUCT {
+	LC_EXPR * expr;
+	struct MEMMGR_RECORD_STRUCT * next;
+} MEMMGR_RECORD;
+
+MEMMGR_RECORD * memmgrRecords = NULL;
+
+int getNumMemMgrRecords() {
+	int n = 0;
+	MEMMGR_RECORD * mmRec = memmgrRecords;
+
+	while (mmRec != NULL) {
+		++n;
+		mmRec = mmRec->next;
 	}
 
-	return ;
+	return n;
 }
-*/
+
+void clearMarks() {
+	MEMMGR_RECORD * mmRec;
+
+	for (mmRec = memmgrRecords; mmRec != NULL; mmRec = mmRec->next) {
+		mmRec->expr->mark = 0;
+	}
+}
+
+void setMarksInExprTree(LC_EXPR * expr) {
+	/* Do this recursively */
+	expr->mark = 1;
+
+	if (expr->expr != NULL) {
+		setMarksInExprTree(expr->expr);
+	}
+
+	if (expr->expr2 != NULL) {
+		setMarksInExprTree(expr->expr2);
+	}
+}
+
+void freeUnmarkedStructs() {
+	MEMMGR_RECORD ** ppmmRec = &memmgrRecords;
+	MEMMGR_RECORD * mmRec = *ppmmRec;
+
+	while (mmRec != NULL) {
+
+		if (mmRec->expr->mark == 0) {
+			/* Free mmRec->expr. Do not free recursively. */
+			mmRec->expr->expr = NULL;
+			mmRec->expr->expr2 = NULL;
+			free(mmRec->expr);
+			mmRec->expr = NULL;
+
+			/* Then free mmRec, preserving the integrity of the linked list */
+			MEMMGR_RECORD * nextmmRec = mmRec->next;
+
+			mmRec->expr = NULL;
+			mmRec->next = NULL;
+			free(mmRec);
+			*ppmmRec = nextmmRec;
+		} else {
+			ppmmRec = &mmRec->next;
+		}
+
+		mmRec = *ppmmRec;
+	}
+}
+
+void collectGarbage(LC_EXPR * exprTreesToMark[]) {
+	int i;
+
+	clearMarks();
+
+	for (i = 0; exprTreesToMark[i] != NULL; ++i) {
+		setMarksInExprTree(exprTreesToMark[i]);
+	}
+
+	freeUnmarkedStructs();
+}
+
+void freeAllStructs() {
+	clearMarks();
+	freeUnmarkedStructs();
+}
 
 // **** Create and Free functions ****
-
-// **** Create and Free Variable functions ****
 
 LC_EXPR * createExpr(int type, char * name, LC_EXPR * expr, LC_EXPR * expr2) {
 
@@ -93,6 +193,7 @@ LC_EXPR * createExpr(int type, char * name, LC_EXPR * expr, LC_EXPR * expr2) {
 
 	LC_EXPR * newExpr = (LC_EXPR *)malloc(sizeof(LC_EXPR));
 
+	newExpr->mark = 0;
 	newExpr->type = type;
 	memset(newExpr->name, 0, maxStringValueLength);
 
@@ -103,7 +204,18 @@ LC_EXPR * createExpr(int type, char * name, LC_EXPR * expr, LC_EXPR * expr2) {
 	newExpr->expr = expr;
 	newExpr->expr2 = expr2;
 
+	/* TODO: Add newExpr to memmgrRecords */
+	MEMMGR_RECORD * mmRec = (MEMMGR_RECORD *)malloc(sizeof(MEMMGR_RECORD));
+
+	mmRec->expr = newExpr;
+	mmRec->next = memmgrRecords;
+	memmgrRecords = mmRec;
+
 	return newExpr;
+}
+
+LC_EXPR * cloneExpr(LC_EXPR * expr) {
+	return createExpr(expr->type, expr->name, expr->expr, expr->expr2);
 }
 
 LC_EXPR * createVariable(char * name) {
@@ -121,7 +233,7 @@ LC_EXPR * createFunctionCall(LC_EXPR * expr, LC_EXPR * expr2) {
 void freeExpr(LC_EXPR * expr) {
 	memset(expr->name, 0, maxStringValueLength);
 
-	if (expr->expr != NULL) {
+	/* if (expr->expr != NULL) {
 		freeExpr(expr->expr);
 		expr->expr = NULL;
 	}
@@ -129,10 +241,16 @@ void freeExpr(LC_EXPR * expr) {
 	if (expr->expr2 != NULL) {
 		freeExpr(expr->expr2);
 		expr->expr2 = NULL;
-	}
+	} */
 
+	/* TODO? : Remove newExpr from memmgrRecords? Or just wait for garbage collection? */
+
+	expr->expr = NULL;
+	expr->expr2 = NULL;
 	free(expr);
 }
+
+/* ---- */
 
 BOOL areEqual(LC_EXPR * expr1, LC_EXPR * expr2) {
 
@@ -427,29 +545,19 @@ LC_EXPR * etaReduce(LC_EXPR * expr) {
 
 	switch (expr->type) {
 		case lcExpressionType_Variable:
-			return expr;
+			/* return expr; */
+
+			return cloneExpr(expr);
+
+			/* return createVariable(expr->name); */
 
 		case lcExpressionType_LambdaExpr:
-			/*
-			if (
-				isLCFunctionCall(this.body) &&
-				isLCVariable(this.body.arg) &&
-				this.body.arg.name === this.arg.name &&
-				!this.body.callee.containsUnboundVariableNamed(this.arg.name, createSet<string>())
-			) {
-				return this.body.callee.etaReduce();
-			}
-
-			return this;
-
-			BOOL containsUnboundVariableNamed(LC_EXPR * expr, char * varName, STRING_SET * boundVariableNames)
-			*/
 
 			if (expr->expr->type == lcExpressionType_FunctionCall && expr->expr->expr2->type == lcExpressionType_Variable && !strcmp(expr->expr->expr2->name, expr->name) && !containsUnboundVariableNamed(expr->expr->expr, expr->name, NULL)) {
 				return etaReduce(expr->expr->expr);
 			}
 
-			return expr;
+			return createLambdaExpr(expr->name, etaReduce(expr->expr));
 
 		case lcExpressionType_FunctionCall:
 			return createFunctionCall(etaReduce(expr->expr), etaReduce(expr->expr2));
@@ -462,21 +570,6 @@ LC_EXPR * etaReduce(LC_EXPR * expr) {
 }
 
 BOOL areIsomorphic(LC_EXPR * expr1, LC_EXPR * expr2) {
-
-	/* switch (expr->type) {
-		case lcExpressionType_Variable:
-			break;
-
-		case lcExpressionType_LambdaExpr:
-			break;
-
-		case lcExpressionType_FunctionCall:
-			break;
-
-		default:
-			break;
-	} */
-
 	const int bufSize = 64;
 	char buf1[bufSize];
 	char buf2[bufSize];
@@ -655,12 +748,22 @@ void parseAndReduce(char * str) {
 	printExpr(etaReduction);
 	printf("\n");
 
-	/* freeExpr(etaReduction); -> Some memory may be getting freed twice */
-	freeExpr(parseTree);
+	/* freeExpr(etaReduction);
+	freeExpr(parseTree); */
+
+	LC_EXPR * fff[] = { etaReduction, NULL };
+
+	printf("1) NumMemMgrRecords: %d\n", getNumMemMgrRecords());
+	collectGarbage(fff);
+	printf("2) NumMemMgrRecords: %d\n", getNumMemMgrRecords());
+	freeAllStructs();
+	printf("3) NumMemMgrRecords: %d\n", getNumMemMgrRecords());
 }
 
 void runTests() {
 	printf("\nRunning tests...\n");
+
+	initMemoryManagers();
 
 	/* parseAndReduce("x");
 	parseAndReduce("(lambda (x) x)"); */ /* The identity function */
@@ -678,7 +781,9 @@ void runTests() {
 	parseAndReduce("\\f.\\x.(f x)"); /* -> \\f.f : Fails to reduce */
 	parseAndReduce("\\x.(f x)"); /* -> f : Succeeds */
 
-	printf("\nDone.\n\n");
+	terminateMemoryManagers();
+
+	printf("\nDone.\n");
 }
 
 /* **** The Main MoFo **** */

@@ -8,7 +8,7 @@
 /* Forward declarations of some structs */
 
 typedef struct LC_EXPR_STRUCT {
-	/* int mark; */ /* For use by a mark-and-sweep garbage collector */
+	int mark; /* For use by a mark-and-sweep garbage collector */
 	int type;
 	char name[maxStringValueLength]; /* Used for Variable and LambdaExpr */
 	struct LC_EXPR_STRUCT * expr; /* Used for LambdaExpr and FunctionCall */
@@ -18,7 +18,6 @@ typedef struct LC_EXPR_STRUCT {
 /* Enums */
 
 enum {
-	/* lcExpressionType_Undefined, */
 	lcExpressionType_Variable,
 	lcExpressionType_LambdaExpr,
 	lcExpressionType_FunctionCall
