@@ -817,7 +817,27 @@ void runTests() {
 /* **** The Main MoFo **** */
 
 int main(int argc, char * argv[]) {
-	runTests();
+	/* runTests(); */
+
+	BOOL enableTests = FALSE;
+	BOOL enableVersion = FALSE;
+	int i;
+
+	for (i = 1; i < argc; ++i) {
+		/* printf("argv[%d] = %s\n", i, argv[i]); */
+
+		if (!strcmp(argv[i], "-t")) {
+			enableTests = TRUE;
+		} else if (!strcmp(argv[i], "-v")) {
+			enableVersion = TRUE;
+		}
+	}
+
+	if (enableVersion) {
+		printf("\nFacility version 0.0.0\n");
+	} else if (enableTests) {
+		runTests();
+	}
 
 	return 0; /* Zero (as a Unix exit code) means success. */
 }
