@@ -949,20 +949,22 @@ static void runYCombinatorTest1() {
 	char * strIsZero = "\\n.((n \\z.\\x.\\y.y) \\x.\\y.x)";
 
 	/* const strG = `λr.λn.(((${strIf} (${strIsZero} n)) ${strOne}) ((${strMult} n) (r (${strPredecessor} n))))`; */
-	/* ->
-	char * strG = malloc(...);
+	char * strG = (char *)malloc(1024 * sizeof(char));
 
-	memset(strG, 0, ...);
-	sprintf(strG, "\\r.\\n.(((%s (%s n)) %s) ((%s n) (r (%s n))))", strIf, strIsZero, strOne, strMult, strPredecessor); */
+	memset(strG, 0, 1024 * sizeof(char));
+	sprintf(strG, "\\r.\\n.(((%s (%s n)) %s) ((%s n) (r (%s n))))", strIf, strIsZero, strOne, strMult, strPredecessor);
+
+	printf("strG is: %s\n", strG);
+	printf("strlen(strG) is: %d\n", strlen(strG));
 
 	/* const strYCombinator = 'λa.(λb.(a (b b)) λb.(a (b b)))'; */
 	char * strYCombinator = "\\a.(\\b.(a (b b)) \\b.(a (b b)))";
 
 	/* const expr = `((${strYCombinator} ${strG}) ${strThree})`; // 3 factorial
 	->
-	char * expr = malloc(...);
+	char * expr = (char *)malloc(1024 * sizeof(char));
 
-	memset(expr, 0, ...);
+	memset(expr, 0, 1024 * sizeof(char));
 	sprintf(expr, "((%s %s) %s)", strYCombinator, strG, strThree);
 
 	expect(f(expr)).toBeDefined();
@@ -974,8 +976,8 @@ static void runYCombinatorTest1() {
 	const expectedResult = f(strSix);
 
 	free(expr);
-	free(strG);
 	*/
+	free(strG);
 }
 
 static void runTests() {
