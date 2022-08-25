@@ -251,9 +251,9 @@ LC_EXPR * createExpr(int type, char * name, LC_EXPR * expr, LC_EXPR * expr2) {
 	return newExpr;
 }
 
-LC_EXPR * cloneExpr(LC_EXPR * expr) {
+/* LC_EXPR * cloneExpr(LC_EXPR * expr) {
 	return createExpr(expr->type, expr->name, expr->expr, expr->expr2);
-}
+} */
 
 LC_EXPR * createVariable(char * name) {
 	return createExpr(lcExpressionType_Variable, name, NULL, NULL);
@@ -267,10 +267,10 @@ LC_EXPR * createFunctionCall(LC_EXPR * expr, LC_EXPR * expr2) {
 	return createExpr(lcExpressionType_FunctionCall, NULL, expr, expr2);
 }
 
-void freeExpr(LC_EXPR * expr) {
+/* void freeExpr(LC_EXPR * expr) {
 	memset(expr->name, 0, maxStringValueLength);
 
-	/* if (expr->expr != NULL) {
+	/ * if (expr->expr != NULL) {
 		freeExpr(expr->expr);
 		expr->expr = NULL;
 	}
@@ -278,19 +278,19 @@ void freeExpr(LC_EXPR * expr) {
 	if (expr->expr2 != NULL) {
 		freeExpr(expr->expr2);
 		expr->expr2 = NULL;
-	} */
+	} * /
 
-	/* TODO? : Remove newExpr from memmgrRecords? Or just wait for garbage collection? */
+	/ * TODO? : Remove newExpr from memmgrRecords? Or just wait for garbage collection? * /
 
 	expr->expr = NULL;
 	expr->expr2 = NULL;
 	free(expr);
 	++numFrees;
-}
+} */
 
-/* ---- */
+/* Domain Object Model functions */
 
-BOOL areEqual(LC_EXPR * expr1, LC_EXPR * expr2) {
+/* BOOL areEqual(LC_EXPR * expr1, LC_EXPR * expr2) {
 
 	if (expr1->type != expr2->type) {
 		return FALSE;
@@ -311,7 +311,7 @@ BOOL areEqual(LC_EXPR * expr1, LC_EXPR * expr2) {
 	}
 
 	return FALSE;
-}
+} */
 
 BOOL containsVariableNamed(LC_EXPR * expr, char * varName) {
 
@@ -669,9 +669,9 @@ LC_EXPR * etaReduce(LC_EXPR * expr) {
 
 	switch (expr->type) {
 		case lcExpressionType_Variable:
-			/* return expr; */
+			return expr;
 
-			return cloneExpr(expr);
+			/* return cloneExpr(expr); */
 
 		case lcExpressionType_LambdaExpr:
 
@@ -831,17 +831,18 @@ void parseAndReduce(char * str) {
 
 	LC_EXPR * reducedExpr = betaReduce(parseTree, maxDepth);
 
+	LC_EXPR * stillInUse[] = { reducedExpr, NULL };
+
+	printf("1) NumMemMgrRecords before GC: %d\n", getNumMemMgrRecords());
+	collectGarbage(stillInUse);
+	printf("2) NumMemMgrRecords after GC: %d\n", getNumMemMgrRecords());
+
 	printf("reducedExpr: ");
 	printExpr(reducedExpr);
 	printf("\n");
 
-	/* LC_EXPR * fff[] = { etaReduction, NULL };
-
-	printf("1) NumMemMgrRecords: %d\n", getNumMemMgrRecords());
-	collectGarbage(fff); */
-	printf("2) NumMemMgrRecords: %d\n", getNumMemMgrRecords());
 	freeAllStructs();
-	printf("3) NumMemMgrRecords: %d\n", getNumMemMgrRecords());
+	printf("3) NumMemMgrRecords final: %d\n", getNumMemMgrRecords());
 }
 
 void runTests() {
