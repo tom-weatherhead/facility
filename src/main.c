@@ -399,6 +399,8 @@ LC_EXPR * substituteForUnboundVariable(LC_EXPR * expr, char * varName, LC_EXPR *
 }
 
 STRING_SET * getSetOfAllVariableNames(LC_EXPR * expr) {
+	STRING_SET * set2 = NULL;
+	STRING_SET * result = NULL;
 
 	switch (expr->type) {
 		case lcExpressionType_Variable:
@@ -408,7 +410,11 @@ STRING_SET * getSetOfAllVariableNames(LC_EXPR * expr) {
 			return addStringToSet(expr->name, getSetOfAllVariableNames(expr->expr));
 
 		case lcExpressionType_FunctionCall:
-			return unionOfStringSets(getSetOfAllVariableNames(expr->expr), getSetOfAllVariableNames(expr->expr2));
+			set2 = getSetOfAllVariableNames(expr->expr2);
+			result = unionOfStringSets(getSetOfAllVariableNames(expr->expr), set2);
+			freeStringSet(set2);
+
+			return result;
 
 		default:
 			break;
