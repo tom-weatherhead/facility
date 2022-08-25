@@ -60,4 +60,16 @@ STRING_SET * unionOfStringSets(STRING_SET * set1, STRING_SET * set2) {
 	return set1;
 }
 
+void freeStringSet(STRING_SET * set) {
+
+	while (set != NULL) {
+		STRING_SET * next = set->next;
+
+		set->str = NULL;
+		free(set);
+		++numFrees;
+		set = next;
+	}
+}
+
 /* **** The End **** */

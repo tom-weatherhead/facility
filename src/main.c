@@ -45,6 +45,9 @@
 static int numMallocs = 0;
 static int numFrees = 0;
 
+LC_EXPR * betaReduce(LC_EXPR * expr, int maxDepth);
+LC_EXPR * etaReduce(LC_EXPR * expr);
+
 // **** Memory manager functions ****
 
 /* TODO: Memory manager version 2:
@@ -456,7 +459,156 @@ BOOL isBetaReducible(LC_EXPR * expr) {
 	return FALSE;
 }
 
+typedef enum {
+	brsCallByName,
+	brsNormalOrder,
+	brsCallByValue,
+	brsApplicativeOrder,
+	brsHybridApplicativeOrder,
+	brsHeadSpine,
+	brsHybridNormalOrder,
+	brsThAWHackForYCombinator,
+	brsDefault = brsNormalOrder
+} BetaReductionStrategy;
+
+int generatedVariableNumber = 0;
+
+void generateNewVariableName(char * buf, int bufSize) {
+	memset(buf, 0, bufSize);
+	++generatedVariableNumber;
+	sprintf(buf, "v%d", generatedVariableNumber);
+}
+
+LC_EXPR * betaReduceCore(LC_EXPR * lambdaExpression, LC_EXPR * arg) {
+	// Rename variables as necessary (α-conversion)
+	// My idea for an algorithm:
+	// 1) Build a set of all (unbound?) variables in the body;
+
+	/* I.e. Create an array of the names of all unbound variables in arg:
+	const argVarNames = arg
+		.getSetOfAllVariableNames()
+		.toArray()
+		.filter((name: string) => arg.containsUnboundVariableNamed(name, createSet<string>())); */
+
+	STRING_SET * allVarNames = getSetOfAllVariableNames(arg);
+	STRING_SET * allVarNamesUnboundInArg = NULL;
+	STRING_SET * ss;
+
+	for (ss = allVarNames; ss != NULL; ss = ss->next) {
+
+		if (containsUnboundVariableNamed(arg, ss->str, NULL)) {
+			allVarNamesUnboundInArg = addStringToSet(ss->str, allVarNamesUnboundInArg);
+		}
+	}
+
+	freeStringSet(allVarNames);
+	allVarNames = NULL;
+
+	/*
+	// If we set argVarNames = [] so that we don't rename any variables,
+	// the unit testing appears to never terminate.
+	// const argVarNames: string[] = [];
+
+	// 2) for each var v in the set:
+	//   - If v occurs as a bound variable in the callee, then:
+	//     - Generate a new variable name w that does not occur in the callee;
+	//     - In the callee, replace all bound occurrences of v with w.
+	// console.log("Names of variables in the call's actual parameter:", argVarNames);
+
+	// The variable renaming here prevents unbound variables in arg from becoming
+	// unintentionally bound when the substitution (into the Lambda expression's body)
+	// is performed.
+	*/
+
+	/*
+	for (const name of argVarNames) {
+		if (lambdaExpression.containsBoundVariableNamed(name)) {
+			let generatedVarName: string;
+
+			do {
+				generatedVarName = generateNewVariableName();
+				// console.log(
+				// 	`call.ts : betaReduceCore() : generatedVarName is ${generatedVarName}`
+				// );
+			} while (lambdaExpression.containsVariableNamed(generatedVarName));
+
+			// α-conversion :
+			// console.log(
+			// 	`call.ts : betaReduceCore() : Old lambdaExpression is ${lambdaExpression}`
+			// );
+			lambdaExpression = lambdaExpression.renameBoundVariable(
+				generatedVarName,
+				name
+			) as ILCLambdaExpression;
+			// console.log(
+			// 	`call.ts : betaReduceCore() : New (renamed) lambdaExpression is ${lambdaExpression}`
+			// );
+		}
+	} */
+
+	for (ss = allVarNamesUnboundInArg; ss != NULL; ss = ss->next) {
+
+		if (containsBoundVariableNamed(lambdaExpression, ss->str)) {
+			char buf[maxStringValueLength];
+
+			generateNewVariableName(buf, maxStringValueLength);
+
+			lambdaExpression = renameBoundVariable(lambdaExpression, buf, ss->str);
+		}
+	}
+
+	// Substitution:
+	// Replace all unbound occurrences of Lambda expression's formal parameter
+	// (lambdaExpression.arg) in the Lambda expression's body (lambdaExpression.body)
+	// with an actual parameter (arg) :
+
+	/* return lambdaExpression.body.substituteForUnboundVariable(lambdaExpression.arg.name, arg); */
+
+	return substituteForUnboundVariable(lambdaExpression->expr, lambdaExpression->name, arg);
+}
+
+LC_EXPR * betaReduceFunctionCall_NormalOrder(LC_EXPR * expr, int maxDepth) {
+	/* normal - leftmost outermost; the most popular reduction strategy */
+
+	if (maxDepth <= 0) {
+		return expr;
+	}
+
+	/*
+	const options = {
+		strategy: BetaReductionStrategy.NormalOrder,
+		generateNewVariableName,
+		maxDepth
+	};
+	*/
+
+	// First, evaluate this.callee; if it does not evaluate
+	// to a LCLambdaExpression, then return.
+	LC_EXPR * evaluatedCallee = betaReduce(expr->expr, maxDepth /* , options */);
+
+	if (evaluatedCallee->type != lcExpressionType_LambdaExpr) {
+		// The result is App(e1’’, nor e2),
+		// where e1’’ = nor e1’ = ...
+		// and e1’ = nor e1 = evaluatedCallee
+		// and e1 = this.callee
+
+		return createFunctionCall(
+			betaReduce(evaluatedCallee, maxDepth /* , options */),
+			/* Note: Simply using 'this.arg' as the second argument fails. */
+			betaReduce(expr->expr2, maxDepth /* , options */)
+		);
+	}
+
+	/* Next, substitute this.arg (expr->expr2) in for the argument in the evaluated callee. */
+
+	return betaReduce(
+		betaReduceCore(evaluatedCallee, expr->expr2),
+		maxDepth
+	);
+}
+
 LC_EXPR * betaReduce(LC_EXPR * expr, int maxDepth) {
+	BetaReductionStrategy strategy = brsDefault;
 
 	if (maxDepth <= 0) {
 		return expr;
@@ -464,59 +616,35 @@ LC_EXPR * betaReduce(LC_EXPR * expr, int maxDepth) {
 
 	--maxDepth;
 
+	expr = etaReduce(expr);
+
 	switch (expr->type) {
 		case lcExpressionType_Variable:
 			return expr;
 
 		case lcExpressionType_LambdaExpr:
-			/*
-			public override betaReduce(options: ILCBetaReductionOptions = {}): ILCExpression {
-				if (typeof options.generateNewVariableName === 'undefined') {
-					throw new Error(
-						'lambda-expression.ts betaReduce() : options.generateNewVariableName is undefined'
-					);
-				}
 
-				let maxDepth = ifDefinedThenElse(options.maxDepth, defaultMaxBetaReductionDepth);
+			switch (strategy) {
+				case brsCallByName:
+				case brsCallByValue:
+					return expr;
 
-				if (maxDepth <= 0) {
-					return this;
-					// throw new Error('lambda-expression.ts betaReduce() : maxDepth <= 0');
-				}
-
-				maxDepth--;
-
-				const strategy = ifDefinedThenElse(options.strategy, defaultBetaReductionStrategy);
-				const newOptions = {
-					strategy,
-					generateNewVariableName: options.generateNewVariableName,
-					maxDepth
-				};
-
-				// 'redex' means 'reducible expression'.
-				const redex = this.etaReduce();
-
-				if (!isLCLambdaExpression(redex)) {
-					return redex.betaReduce(newOptions);
-				}
-
-				switch (strategy) {
-					case BetaReductionStrategy.CallByName:
-						return redex;
-
-					case BetaReductionStrategy.NormalOrder:
-						return new LCLambdaExpression(redex.arg, redex.body.betaReduce(newOptions));
-
-					case BetaReductionStrategy.CallByValue:
-						return redex;
-				}
+				default:
+					return createLambdaExpr(expr->name, betaReduce(expr->expr, maxDepth));
 			}
-			*/
-			return NULL;
+
+			break;
 
 		case lcExpressionType_FunctionCall:
-			/*
-			/// normal - leftmost outermost; the most popular reduction strategy
+
+			switch (strategy) {
+				case brsNormalOrder:
+					return betaReduceFunctionCall_NormalOrder(expr, maxDepth);
+
+				default:
+					return NULL;
+			}
+			/* normal - leftmost outermost; the most popular reduction strategy
 
 			private betaReduceNormalOrder(
 				generateNewVariableName: () => string,
