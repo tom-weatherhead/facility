@@ -953,7 +953,8 @@ void runTests() {
 	/* const strSucc = 'λn.λf.λx.(f ((n f) x))'; The successor function */
 	/* const strZero = 'λf.λx.x'; */
 	/* Expected result: const strOne = 'λf.λx.(f x)'; */
-	parseAndReduce("(\\n.\\f.\\x.(f ((n f) x)) \\f.\\x.x)"); /* Succeeds */
+	parseAndReduce("(\\n.\\f.\\x.(f ((n f) x)) \\f.\\x.x)"); /* succ(0) = 1 : Succeeds */
+	parseAndReduce("(\\n.\\f.\\x.(f ((n f) x)) \\f.\\x.(f x))"); /* succ(1) = 2 : Succeeds */
 
 	terminateMemoryManagers();
 
@@ -963,8 +964,6 @@ void runTests() {
 /* **** The Main MoFo **** */
 
 int main(int argc, char * argv[]) {
-	/* runTests(); */
-
 	BOOL enableTests = FALSE;
 	BOOL enableVersion = FALSE;
 	int i;
