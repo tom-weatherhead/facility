@@ -871,7 +871,7 @@ static void printExpr(LC_EXPR * expr) {
 	}
 }
 
-static void parseAndReduce(char * str) {
+static void parseAndReduceDelegate(char * str, BetaReductionStrategy strategy) {
 	const int maxDepth = 50;
 
 	printf("\nInput: '%s'\n", str);
@@ -887,14 +887,17 @@ static void parseAndReduce(char * str) {
 	printExpr(parseTree);
 	printf("\n");
 
-	const int bufSize = 64;
-	char buf[bufSize];
+	const int bufSize = 1024;
+	char * buf = (char *)malloc(bufSize * sizeof(char));
 
+	++numMallocs;
 	getDeBruijnIndex(parseTree, buf, bufSize);
 
 	printf("Expr type = %d\nDeBruijn index: %s\n", parseTree->type, buf);
+	free(buf);
+	++numFrees;
 
-	LC_EXPR * reducedExpr = betaReduce(parseTree, maxDepth, brsDefault);
+	LC_EXPR * reducedExpr = betaReduce(parseTree, maxDepth, strategy);
 
 	LC_EXPR * stillInUse[] = { reducedExpr, NULL };
 
@@ -910,6 +913,14 @@ static void parseAndReduce(char * str) {
 	printf("3) NumMemMgrRecords final: %d\n", getNumMemMgrRecords());
 }
 
+static void parseAndReduce(char * str) {
+	parseAndReduceDelegate(str, brsDefault);
+}
+
+static void parseAndReduceYCombinator(char * str) {
+	parseAndReduceDelegate(str, brsThAWHackForYCombinator);
+}
+
 static void runYCombinatorTest1() {
 	/* Y combinator test 1 */
 
@@ -919,29 +930,16 @@ static void runYCombinatorTest1() {
 	/* This Y combinator test succeeds via the CallByName strategy only... */
 	/* or is it ThAWHackForYCombinator ? */
 
-	/* const strG = 'λr.λn.if (= n 0) 1 (* n (r (- n 1)))';
+	/* const strG = 'λr.λn.if (= n 0) 1 (* n (r (- n 1)))'; */
 
-	// Rewrite strG as pure λ-calculus:
+	/* Rewrite strG as pure λ-calculus: */
 
-	// Arrange
-	const strTrue = 'λx.λy.x';
-	const strFalse = 'λx.λy.y';
-	const strIf = 'λb.λx.λy.((b x) y)';
-	const strOne = 'λf.λx.(f x)';
-	// const strTwo = 'λf.λx.(f (f x))';
-	const strThree = 'λf.λx.(f (f (f x)))';
-	const strSix = 'λf.λx.(f (f (f (f (f (f x))))))';
-	const strIsZero = `λn.((n λx.${strFalse}) ${strTrue})`;
-	const strMult = 'λm.λn.λf.(m (n f))';
-	const strPredecessor = 'λn.λf.λx.(((n λg.λh.(h (g f))) λu.x) λu.u)';
-	*/
-
-	char * strTrue = "\\x.\\y.x";
-	char * strFalse = "\\x.\\y.y";
+	/* char * strTrue = "\\x.\\y.x"; */
+	/* char * strFalse = "\\x.\\y.y"; */
 	char * strIf = "\\b.\\x.\\y.((b x) y)";
 	char * strOne = "\\f.\\x.(f x)";
 	char * strThree= "\\f.\\x.(f (f (f x)))";
-	char * strSix = "\\f.\\x.(f (f (f (f (f (f x))))))";
+	/* char * strSix = "\\f.\\x.(f (f (f (f (f (f x))))))"; */
 	char * strMult = "\\m.\\n.\\f.(m (n f))";
 	char * strPredecessor = "\\n.\\f.\\x.(((n \\g.\\h.(h (g f))) \\u.x) \\u.u)";
 
@@ -949,35 +947,36 @@ static void runYCombinatorTest1() {
 	char * strIsZero = "\\n.((n \\z.\\x.\\y.y) \\x.\\y.x)";
 
 	/* const strG = `λr.λn.(((${strIf} (${strIsZero} n)) ${strOne}) ((${strMult} n) (r (${strPredecessor} n))))`; */
-	char * strG = (char *)malloc(1024 * sizeof(char));
+	char * strG = (char *)malloc(512 * sizeof(char));
 
-	memset(strG, 0, 1024 * sizeof(char));
+	++numMallocs;
+	memset(strG, 0, 512 * sizeof(char));
 	sprintf(strG, "\\r.\\n.(((%s (%s n)) %s) ((%s n) (r (%s n))))", strIf, strIsZero, strOne, strMult, strPredecessor);
 
 	printf("strG is: %s\n", strG);
-	printf("strlen(strG) is: %d\n", strlen(strG));
+	printf("strlen(strG) is: %lu\n", strlen(strG)); /* -> 150 */
 
 	/* const strYCombinator = 'λa.(λb.(a (b b)) λb.(a (b b)))'; */
 	char * strYCombinator = "\\a.(\\b.(a (b b)) \\b.(a (b b)))";
 
-	/* const expr = `((${strYCombinator} ${strG}) ${strThree})`; // 3 factorial
-	->
-	char * expr = (char *)malloc(1024 * sizeof(char));
+	/* const expr = `((${strYCombinator} ${strG}) ${strThree})`; */
+	char * expr = (char *)malloc(512 * sizeof(char));
 
-	memset(expr, 0, 1024 * sizeof(char));
+	++numMallocs;
+	memset(expr, 0, 512 * sizeof(char));
 	sprintf(expr, "((%s %s) %s)", strYCombinator, strG, strThree);
 
-	expect(f(expr)).toBeDefined();
+	printf("expr is: %s\n", expr);
+	printf("strlen(expr) is: %lu\n", strlen(expr)); /* -> 205 */
 
-	// Act
-	const generateNewVariableName = createVariableNameGenerator();
-	// const maxBetaReductionDepth = 100;
-
-	const expectedResult = f(strSix);
+	parseAndReduceYCombinator(expr);
+	/* Output: reducedExpr: λf.λx.(f (f (f (f (f (f x)))))) == 6 */
+	/* The test passes! */
 
 	free(expr);
-	*/
+	++numFrees;
 	free(strG);
+	++numFrees;
 }
 
 static void runTests() {
@@ -1033,8 +1032,6 @@ static void runTests() {
 
 	/* Y combinator test 1 */
 	runYCombinatorTest1();
-
-	/*  */
 
 	/* parseAndReduce("( )"); */
 
