@@ -646,49 +646,7 @@ LC_EXPR * betaReduce(LC_EXPR * expr, int maxDepth) {
 				default:
 					return NULL;
 			}
-			/* normal - leftmost outermost; the most popular reduction strategy
 
-			private betaReduceNormalOrder(
-				generateNewVariableName: () => string,
-				maxDepth: number
-			): ILCExpression {
-
-				if (maxDepth <= 0) {
-					return this;
-					// throw new Error('call.ts : betaReduceNormalOrder() : maxDepth <= 0');
-				}
-
-				const options = {
-					strategy: BetaReductionStrategy.NormalOrder,
-					generateNewVariableName,
-					maxDepth
-				};
-
-				// First, evaluate this.callee; if it does not evaluate to a LCLambdaExpression,
-				// then return.
-				const evaluatedCallee = this.callee.deltaReduce().betaReduce(options);
-
-				if (!isLCLambdaExpression(evaluatedCallee)) {
-					// The result is App(e1’’, nor e2),
-					// where e1’’ = nor e1’ = ...
-					// and e1’ = nor e1 = evaluatedCallee
-					// and e1 = this.callee
-					const result = new LCFunctionCall(
-						evaluatedCallee.deltaReduce().betaReduce(options),
-						// Note: Simply using 'this.arg' as the second argument fails.
-						this.arg.deltaReduce().betaReduce(options)
-					);
-
-					return result;
-				}
-
-				// Next, substitute this.arg in for the arg in the evaluated callee.
-
-				return this.betaReduceCore(evaluatedCallee, this.arg, generateNewVariableName)
-					.deltaReduce()
-					.betaReduce(options);
-			}
-			*/
 			return NULL;
 
 		default:
@@ -706,8 +664,6 @@ LC_EXPR * etaReduce(LC_EXPR * expr) {
 			/* return expr; */
 
 			return cloneExpr(expr);
-
-			/* return createVariable(expr->name); */
 
 		case lcExpressionType_LambdaExpr:
 
@@ -755,41 +711,8 @@ etaReduce(): ILCExpression;
 // κ-reduction is the reduction of the SKI combinators (?)
  */
 
-/* TODO: Alpha-conversion α : renameBoundVariable() */
-/* TODO: Beta-reduction β : */
-
-/* export enum BetaReductionStrategy {
-	CallByName,
-	NormalOrder,
-	CallByValue,
-	ApplicativeOrder,
-	HybridApplicativeOrder,
-	HeadSpine,
-	HybridNormalOrder,
-	ThAWHackForYCombinator
-} */
-
 /* X TODO: Delta-reduction δ (reduction of constant arithmetic exprs) */
-/* TODO: Eta-reduction η */
 /* TODO? : Kappa-reduction κ */
-
-/* LC_EXPR * reduce(LC_EXPR * expr) {
-
-	switch (expr->type) {
-		case lcExpressionType_Variable:
-			/ * Return a clone of the expr so it can be freed separately * /
-			return cloneExpr(expr->var);
-
-		case lcExpressionType_LambdaExpr:
-			return reduceLambdaExpression(expr->fnDefn);
-
-		case lcExpressionType_FunctionCall:
-			return reduceFunctionCall(expr->fnCall);
-
-		default:
-			return NULL;
-	}
-} */
 
 LC_EXPR * parseExpression(CharSource * cs) {
 	char dstBuf[maxStringValueLength];
@@ -904,13 +827,7 @@ void parseAndReduce(char * str) {
 	printExpr(reducedExpr);
 	printf("\n");
 
-	/* LC_EXPR * etaReduction = etaReduce(parseTree);
-
-	printf("Eta reduction: ");
-	printExpr(etaReduction);
-	printf("\n");
-
-	LC_EXPR * fff[] = { etaReduction, NULL };
+	/* LC_EXPR * fff[] = { etaReduction, NULL };
 
 	printf("1) NumMemMgrRecords: %d\n", getNumMemMgrRecords());
 	collectGarbage(fff); */
@@ -923,11 +840,6 @@ void runTests() {
 	printf("\nRunning tests...\n");
 
 	initMemoryManagers();
-
-	/* parseAndReduce("x");
-	parseAndReduce("(lambda (x) x)"); */ /* The identity function */
-
-	/* parseAndReduce(""); */
 
 	parseAndReduce("x");
 	parseAndReduce("\\x.x");
