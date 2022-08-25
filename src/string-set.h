@@ -7,7 +7,7 @@ typedef struct STRING_SET_STRUCT {
 
 BOOL stringSetContains(STRING_SET * set, char * str);
 STRING_SET * addStringToSet(char * str, STRING_SET * set);
-STRING_SET * unionOfStringSets(STRING_SET * set1, STRING_SET * set2);
+STRING_SET * unionOfStringSets(STRING_SET * set1, STRING_SET * set2, BOOL destroySet2);
 void freeStringSet(STRING_SET * set);
 
 void printStringSetMemMgrReport();

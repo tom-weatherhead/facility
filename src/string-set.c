@@ -48,13 +48,19 @@ STRING_SET * addStringToSet(char * str, STRING_SET * set) {
 	return newSet;
 }
 
-STRING_SET * unionOfStringSets(STRING_SET * set1, STRING_SET * set2) {
+STRING_SET * unionOfStringSets(STRING_SET * set1, STRING_SET * set2, BOOL destroySet2) {
+	/* This function can modify set1. */
+	STRING_SET * ss;
 
-	for (; set2 != NULL; set2 = set2->next) {
+	for (ss = set2; ss != NULL; ss = ss->next) {
 
-		if (!stringSetContains(set1, set2->str)) {
-			set1 = addStringToSet(set2->str, set1);
+		if (!stringSetContains(set1, ss->str)) {
+			set1 = addStringToSet(ss->str, set1);
 		}
+	}
+
+	if (destroySet2) {
+		freeStringSet(set2);
 	}
 
 	return set1;

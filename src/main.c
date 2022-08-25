@@ -3,9 +3,9 @@
 /* ThAW: Started on 2022-08-22 */
 
 /* To compile and link: $ make */
-/* To run: $ ./facility */
+/* To run tests: $ ./facility -t */
 /* To remove all build products: $ make clean */
-/* To do all of the above: $ make clean && make && ./facility */
+/* To do all of the above: $ make clean && make && ./facility -t */
 
 /* The grammar of the Lambda Calculus:
  * expression := variable
@@ -399,8 +399,6 @@ LC_EXPR * substituteForUnboundVariable(LC_EXPR * expr, char * varName, LC_EXPR *
 }
 
 STRING_SET * getSetOfAllVariableNames(LC_EXPR * expr) {
-	STRING_SET * set2 = NULL;
-	STRING_SET * result = NULL;
 
 	switch (expr->type) {
 		case lcExpressionType_Variable:
@@ -410,11 +408,7 @@ STRING_SET * getSetOfAllVariableNames(LC_EXPR * expr) {
 			return addStringToSet(expr->name, getSetOfAllVariableNames(expr->expr));
 
 		case lcExpressionType_FunctionCall:
-			set2 = getSetOfAllVariableNames(expr->expr2);
-			result = unionOfStringSets(getSetOfAllVariableNames(expr->expr), set2);
-			freeStringSet(set2);
-
-			return result;
+			return unionOfStringSets(getSetOfAllVariableNames(expr->expr), getSetOfAllVariableNames(expr->expr2), TRUE);
 
 		default:
 			break;
