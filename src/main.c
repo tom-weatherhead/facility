@@ -910,6 +910,49 @@ static void parseAndReduce(char * str) {
 	printf("3) NumMemMgrRecords final: %d\n", getNumMemMgrRecords());
 }
 
+static void runYCombinatorTest1() {
+	/* Y combinator test 1 */
+
+	/* This test calculates 3 factorial using Church numerals
+	and the Y combinator. */
+
+	/* This Y combinator test succeeds via the CallByName strategy only... */
+	/* or is it ThAWHackForYCombinator ? */
+
+	/* const strG = 'λr.λn.if (= n 0) 1 (* n (r (- n 1)))';
+
+	// Rewrite strG as pure λ-calculus:
+
+	// Arrange
+	const f = getParseFunction();
+	const strTrue = 'λx.λy.x';
+	const strFalse = 'λx.λy.y';
+	const strIf = 'λb.λx.λy.((b x) y)';
+	const strOne = 'λf.λx.(f x)';
+	// const strTwo = 'λf.λx.(f (f x))';
+	const strThree = 'λf.λx.(f (f (f x)))';
+	const strSix = 'λf.λx.(f (f (f (f (f (f x))))))';
+	const strIsZero = `λn.((n λx.${strFalse}) ${strTrue})`;
+	const strMult = 'λm.λn.λf.(m (n f))';
+	const strPredecessor = 'λn.λf.λx.(((n λg.λh.(h (g f))) λu.x) λu.u)';
+
+	const strG = `λr.λn.(((${strIf} (${strIsZero} n)) ${strOne}) ((${strMult} n) (r (${strPredecessor} n))))`;
+	*/
+
+	/* const strYCombinator = 'λa.(λb.(a (b b)) λb.(a (b b)))'; */
+
+	/* const expr = `((${strYCombinator} ${strG}) ${strThree})`; // 3 factorial
+
+	expect(f(expr)).toBeDefined();
+
+	// Act
+	const generateNewVariableName = createVariableNameGenerator();
+	// const maxBetaReductionDepth = 100;
+
+	const expectedResult = f(strSix);
+	*/
+}
+
 static void runTests() {
 	printf("\nRunning tests...\n");
 
@@ -962,9 +1005,7 @@ static void runTests() {
 	/* Church Numerals isZero Test 1 */
 
 	/* Y combinator test 1 */
-	/* This Y combinator test succeeds via the CallByName strategy only... */
-	/* or is it ThAWHackForYCombinator ? */
-	/* const strYCombinator = 'λa.(λb.(a (b b)) λb.(a (b b)))'; */
+	runYCombinatorTest1();
 
 	/*  */
 
