@@ -364,8 +364,7 @@ BOOL containsUnboundVariableNamed(LC_EXPR * expr, char * varName, STRING_SET * b
 
 			if (newStringSet != NULL) {
 				newStringSet->next = NULL;
-				free(newStringSet);
-				++numFrees;
+				freeStringSet(newStringSet);
 			}
 
 			return result;
@@ -941,8 +940,20 @@ void runTests() {
 	parseAndReduce("\\f.\\x.(f x)"); /* -> \\f.f : Succeeds */
 	parseAndReduce("\\x.(f x)"); /* -> f : Succeeds */
 
-	/* LambdaCalculus beta-reduction test 1 */
+	/* LambdaCalculus beta-reduction test 1 from thaw-grammar */
 	parseAndReduce("(\\x.x y)"); /* -> y : Succeeds */
+
+	/* LambdaCalculus beta-reduction test 2 */
+	parseAndReduce("(\\f.\\x.x g)"); /* -> \\x.x : Succeeds */
+
+	/* LambdaCalculus beta-reduction test 3 */
+	parseAndReduce("((\\f.\\x.x g) h)"); /* -> h : Succeeds */
+
+	/* LambdaCalculus Church Numerals Successor Test 1 */
+	/* const strSucc = 'λn.λf.λx.(f ((n f) x))'; The successor function */
+	/* const strZero = 'λf.λx.x'; */
+	/* Expected result: const strOne = 'λf.λx.(f x)'; */
+	parseAndReduce("(\\n.\\f.\\x.(f ((n f) x)) \\f.\\x.x)"); /* Succeeds */
 
 	terminateMemoryManagers();
 
