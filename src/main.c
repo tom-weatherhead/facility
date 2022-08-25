@@ -956,6 +956,19 @@ void runTests() {
 	parseAndReduce("(\\n.\\f.\\x.(f ((n f) x)) \\f.\\x.x)"); /* succ(0) = 1 : Succeeds */
 	parseAndReduce("(\\n.\\f.\\x.(f ((n f) x)) \\f.\\x.(f x))"); /* succ(1) = 2 : Succeeds */
 
+	/* LambdaCalculus Church Numerals Predecessor Test 1 */
+	/* const strPred = 'λn.λf.λx.(((n λg.λh.(h (g f))) λu.x) λu.u)'; */
+	/* const strOne = 'λf.λx.(f x)'; */
+	/* const strTwo = 'λf.λx.(f (f x))'; */
+	/* const strThree = 'λf.λx.(f (f (f x)))'; */
+	parseAndReduce("(\\n.\\f.\\x.(((n \\g.\\h.(h (g f))) \\u.x) \\u.u) \\f.\\x.(f x))"); /* pred(1) = 0 : Succeeds */
+	parseAndReduce("(\\n.\\f.\\x.(((n \\g.\\h.(h (g f))) \\u.x) \\u.u) \\f.\\x.(f (f x)))"); /* pred(2) = 1 : Succeeds */
+	parseAndReduce("(\\n.\\f.\\x.(((n \\g.\\h.(h (g f))) \\u.x) \\u.u) \\f.\\x.(f (f (f x))))"); /* pred(3) = 2 : Succeeds */
+
+	/* ThAW 2022-08-24 : Memory is being leaked in the string sets */
+
+	/* parseAndReduce("( )"); */
+
 	terminateMemoryManagers();
 
 	printf("\nDone.\n");
