@@ -1,4 +1,7 @@
 # facility
+
+Simplicity and ability.
+
 A Lambda Calculus interpreter implemented in C.
 
 [![watchers][watchers-badge-image]][watchers-url]

@@ -6,6 +6,8 @@
 
 #include "boolean.h"
 
+#include "types.h"
+
 #include "char-source.h"
 
 static int numMallocs = 0;
@@ -114,6 +116,22 @@ int getIdentifier(CharSource * cs, char * dstBuf, int dstBufSize) {
 	/* Or: memcpy(dstBuf, cs->str + start, lenToCopy); */
 
 	return lenToCopy;
+}
+
+BOOL consumeStr(CharSource * cs, char * str) {
+	/* Consume str */
+	const int dstBufSize = maxStringValueLength;
+	char dstBuf[dstBufSize];
+
+	if (getIdentifier(cs, dstBuf, dstBufSize) == 0) {
+		fprintf(stderr, "consumeStr() : Error : Expected '%s', found EOF\n", str);
+		return FALSE; /* or exit(1); ? */
+	} else if (strcmp(dstBuf, str)) {
+		fprintf(stderr, "consumeStr() : Error : Expected '%s', found '%s'\n", str, dstBuf);
+		return FALSE;
+	}
+
+	return TRUE;
 }
 
 /* **** The End **** */

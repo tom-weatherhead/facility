@@ -42,11 +42,25 @@
 #include "de-bruijn.h"
 #include "string-set.h"
 
+typedef enum {
+	brsCallByName,
+	brsNormalOrder,
+	brsCallByValue,
+	brsApplicativeOrder,
+	brsHybridApplicativeOrder,
+	brsHeadSpine,
+	brsHybridNormalOrder,
+	brsThAWHackForYCombinator,
+	brsDefault = brsNormalOrder
+} BetaReductionStrategy;
+
 static int numMallocs = 0;
 static int numFrees = 0;
 
-LC_EXPR * betaReduce(LC_EXPR * expr, int maxDepth);
-LC_EXPR * etaReduce(LC_EXPR * expr);
+static int generatedVariableNumber = 0;
+
+static LC_EXPR * betaReduce(LC_EXPR * expr, int maxDepth);
+static LC_EXPR * etaReduce(LC_EXPR * expr);
 
 // **** Memory manager functions ****
 
@@ -311,7 +325,7 @@ LC_EXPR * createFunctionCall(LC_EXPR * expr, LC_EXPR * expr2) {
 	}
 
 	return FALSE;
-} */
+}
 
 BOOL containsVariableNamed(LC_EXPR * expr, char * varName) {
 
@@ -330,9 +344,9 @@ BOOL containsVariableNamed(LC_EXPR * expr, char * varName) {
 	}
 
 	return FALSE;
-}
+} */
 
-BOOL containsBoundVariableNamed(LC_EXPR * expr, char * varName) {
+static BOOL containsBoundVariableNamed(LC_EXPR * expr, char * varName) {
 
 	switch (expr->type) {
 		case lcExpressionType_LambdaExpr:
@@ -349,7 +363,7 @@ BOOL containsBoundVariableNamed(LC_EXPR * expr, char * varName) {
 	return FALSE;
 }
 
-BOOL containsUnboundVariableNamed(LC_EXPR * expr, char * varName, STRING_SET * boundVariableNames) {
+static BOOL containsUnboundVariableNamed(LC_EXPR * expr, char * varName, STRING_SET * boundVariableNames) {
 	BOOL result = FALSE;
 	STRING_SET * newStringSet = NULL;
 
@@ -387,7 +401,7 @@ BOOL containsUnboundVariableNamed(LC_EXPR * expr, char * varName, STRING_SET * b
 	return FALSE;
 }
 
-LC_EXPR * substituteForUnboundVariable(LC_EXPR * expr, char * varName, LC_EXPR * replacementExpr) {
+static LC_EXPR * substituteForUnboundVariable(LC_EXPR * expr, char * varName, LC_EXPR * replacementExpr) {
 
 	switch (expr->type) {
 		case lcExpressionType_Variable:
@@ -406,7 +420,7 @@ LC_EXPR * substituteForUnboundVariable(LC_EXPR * expr, char * varName, LC_EXPR *
 	return NULL;
 }
 
-STRING_SET * getSetOfAllVariableNames(LC_EXPR * expr) {
+static STRING_SET * getSetOfAllVariableNames(LC_EXPR * expr) {
 
 	switch (expr->type) {
 		case lcExpressionType_Variable:
@@ -425,7 +439,7 @@ STRING_SET * getSetOfAllVariableNames(LC_EXPR * expr) {
 	return NULL;
 }
 
-LC_EXPR * renameBoundVariable(LC_EXPR * expr, char * newName, char * oldName) {
+static LC_EXPR * renameBoundVariable(LC_EXPR * expr, char * newName, char * oldName) {
 	/* Also known as α-conversion (alpha conversion) */
 
 	switch (expr->type) {
@@ -450,7 +464,7 @@ LC_EXPR * renameBoundVariable(LC_EXPR * expr, char * newName, char * oldName) {
 	return NULL;
 }
 
-BOOL isBetaReducible(LC_EXPR * expr) {
+/* BOOL isBetaReducible(LC_EXPR * expr) {
 
 	switch (expr->type) {
 		case lcExpressionType_LambdaExpr:
@@ -464,38 +478,20 @@ BOOL isBetaReducible(LC_EXPR * expr) {
 	}
 
 	return FALSE;
-}
+} */
 
-typedef enum {
-	brsCallByName,
-	brsNormalOrder,
-	brsCallByValue,
-	brsApplicativeOrder,
-	brsHybridApplicativeOrder,
-	brsHeadSpine,
-	brsHybridNormalOrder,
-	brsThAWHackForYCombinator,
-	brsDefault = brsNormalOrder
-} BetaReductionStrategy;
-
-int generatedVariableNumber = 0;
-
-void generateNewVariableName(char * buf, int bufSize) {
+static void generateNewVariableName(char * buf, int bufSize) {
 	memset(buf, 0, bufSize);
 	++generatedVariableNumber;
 	sprintf(buf, "v%d", generatedVariableNumber);
 }
 
-LC_EXPR * betaReduceCore(LC_EXPR * lambdaExpression, LC_EXPR * arg) {
-	// Rename variables as necessary (α-conversion)
-	// My idea for an algorithm:
-	// 1) Build a set of all (unbound?) variables in the body;
+static LC_EXPR * betaReduceCore(LC_EXPR * lambdaExpression, LC_EXPR * arg) {
+	/* Rename variables as necessary (α-conversion) */
 
-	/* I.e. Create an array of the names of all unbound variables in arg:
-	const argVarNames = arg
-		.getSetOfAllVariableNames()
-		.toArray()
-		.filter((name: string) => arg.containsUnboundVariableNamed(name, createSet<string>())); */
+	/* My idea for an algorithm:
+	1) Build a set of all (unbound?) variables in the body;
+	I.e. Create an array of the names of all unbound variables in arg: */
 
 	STRING_SET * allVarNames = getSetOfAllVariableNames(arg);
 	STRING_SET * allVarNamesUnboundInArg = NULL;
@@ -512,46 +508,15 @@ LC_EXPR * betaReduceCore(LC_EXPR * lambdaExpression, LC_EXPR * arg) {
 	allVarNames = NULL;
 
 	/*
-	// If we set argVarNames = [] so that we don't rename any variables,
-	// the unit testing appears to never terminate.
-	// const argVarNames: string[] = [];
-
 	// 2) for each var v in the set:
 	//   - If v occurs as a bound variable in the callee, then:
 	//     - Generate a new variable name w that does not occur in the callee;
 	//     - In the callee, replace all bound occurrences of v with w.
-	// console.log("Names of variables in the call's actual parameter:", argVarNames);
 
-	// The variable renaming here prevents unbound variables in arg from becoming
-	// unintentionally bound when the substitution (into the Lambda expression's body)
-	// is performed.
+	// The variable renaming here prevents unbound variables in arg from
+	// becoming unintentionally bound when the substitution (into the Lambda
+	// expression's body) is performed.
 	*/
-
-	/*
-	for (const name of argVarNames) {
-		if (lambdaExpression.containsBoundVariableNamed(name)) {
-			let generatedVarName: string;
-
-			do {
-				generatedVarName = generateNewVariableName();
-				// console.log(
-				// 	`call.ts : betaReduceCore() : generatedVarName is ${generatedVarName}`
-				// );
-			} while (lambdaExpression.containsVariableNamed(generatedVarName));
-
-			// α-conversion :
-			// console.log(
-			// 	`call.ts : betaReduceCore() : Old lambdaExpression is ${lambdaExpression}`
-			// );
-			lambdaExpression = lambdaExpression.renameBoundVariable(
-				generatedVarName,
-				name
-			) as ILCLambdaExpression;
-			// console.log(
-			// 	`call.ts : betaReduceCore() : New (renamed) lambdaExpression is ${lambdaExpression}`
-			// );
-		}
-	} */
 
 	for (ss = allVarNamesUnboundInArg; ss != NULL; ss = ss->next) {
 
@@ -560,6 +525,7 @@ LC_EXPR * betaReduceCore(LC_EXPR * lambdaExpression, LC_EXPR * arg) {
 
 			generateNewVariableName(buf, maxStringValueLength);
 
+			/* α-conversion happens here: */
 			lambdaExpression = renameBoundVariable(lambdaExpression, buf, ss->str);
 		}
 	}
@@ -567,49 +533,41 @@ LC_EXPR * betaReduceCore(LC_EXPR * lambdaExpression, LC_EXPR * arg) {
 	freeStringSet(allVarNamesUnboundInArg);
 	allVarNamesUnboundInArg = NULL;
 
-	// Substitution:
-	// Replace all unbound occurrences of Lambda expression's formal parameter
-	// (lambdaExpression.arg) in the Lambda expression's body (lambdaExpression.body)
-	// with an actual parameter (arg) :
-
-	/* return lambdaExpression.body.substituteForUnboundVariable(lambdaExpression.arg.name, arg); */
+	/* Substitution:
+	Replace all unbound occurrences of Lambda expression's formal parameter
+	(lambdaExpression.arg) in the Lambda expression's body
+	(lambdaExpression.body) with an actual parameter (arg) : */
 
 	return substituteForUnboundVariable(lambdaExpression->expr, lambdaExpression->name, arg);
 }
 
-LC_EXPR * betaReduceFunctionCall_NormalOrder(LC_EXPR * expr, int maxDepth) {
+static LC_EXPR * betaReduceFunctionCall_NormalOrder(LC_EXPR * expr, int maxDepth) {
 	/* normal - leftmost outermost; the most popular reduction strategy */
 
 	if (maxDepth <= 0) {
 		return expr;
 	}
 
-	/*
-	const options = {
-		strategy: BetaReductionStrategy.NormalOrder,
-		generateNewVariableName,
-		maxDepth
-	};
-	*/
-
-	// First, evaluate this.callee; if it does not evaluate
-	// to a LCLambdaExpression, then return.
-	LC_EXPR * evaluatedCallee = betaReduce(expr->expr, maxDepth /* , options */);
+	/* First, evaluate this.callee; if it does not evaluate
+	to a LCLambdaExpression, then return. */
+	LC_EXPR * evaluatedCallee = betaReduce(expr->expr, maxDepth);
 
 	if (evaluatedCallee->type != lcExpressionType_LambdaExpr) {
-		// The result is App(e1’’, nor e2),
-		// where e1’’ = nor e1’ = ...
-		// and e1’ = nor e1 = evaluatedCallee
-		// and e1 = this.callee
+		/* The result is App(e1’’, nor e2),
+		where e1’’ = nor e1’ = ...
+		and e1’ = nor e1 = evaluatedCallee
+		and e1 = this.callee */
 
 		return createFunctionCall(
-			betaReduce(evaluatedCallee, maxDepth /* , options */),
-			/* Note: Simply using 'this.arg' as the second argument fails. */
-			betaReduce(expr->expr2, maxDepth /* , options */)
+			betaReduce(evaluatedCallee, maxDepth),
+			/* Note: Simply using 'this.arg' (i.e. expr->expr2) as
+			the second argument fails. */
+			betaReduce(expr->expr2, maxDepth)
 		);
 	}
 
-	/* Next, substitute this.arg (expr->expr2) in for the argument in the evaluated callee. */
+	/* Next, substitute this.arg (expr->expr2) in for the argument
+	in the evaluated callee. */
 
 	return betaReduce(
 		betaReduceCore(evaluatedCallee, expr->expr2),
@@ -617,7 +575,10 @@ LC_EXPR * betaReduceFunctionCall_NormalOrder(LC_EXPR * expr, int maxDepth) {
 	);
 }
 
-LC_EXPR * betaReduce(LC_EXPR * expr, int maxDepth) {
+static LC_EXPR * betaReduce(LC_EXPR * expr, int maxDepth) {
+	/* β-reduction (beta-reduction) : In the call (\\x.body arg), replace all
+	free occurrences of x in body with arg. Rename free variables in arg where
+	necessary to prevent them from becoming bound inside body. */
 	BetaReductionStrategy strategy = brsDefault;
 
 	if (maxDepth <= 0) {
@@ -664,18 +625,22 @@ LC_EXPR * betaReduce(LC_EXPR * expr, int maxDepth) {
 	return NULL;
 }
 
-LC_EXPR * etaReduce(LC_EXPR * expr) {
-	/* Reduce λx.(f x) to f if x does not appear free in f. */
+static LC_EXPR * etaReduce(LC_EXPR * expr) {
+	/* η-reduction (eta-reduction) : Reduce λx.(f x) to f if x does not appear
+	free in f. */
 
 	switch (expr->type) {
 		case lcExpressionType_Variable:
 			return expr;
 
-			/* return cloneExpr(expr); */
-
 		case lcExpressionType_LambdaExpr:
 
-			if (expr->expr->type == lcExpressionType_FunctionCall && expr->expr->expr2->type == lcExpressionType_Variable && !strcmp(expr->expr->expr2->name, expr->name) && !containsUnboundVariableNamed(expr->expr->expr, expr->name, NULL)) {
+			if (
+				expr->expr->type == lcExpressionType_FunctionCall &&
+				expr->expr->expr2->type == lcExpressionType_Variable &&
+				!strcmp(expr->expr->expr2->name, expr->name) &&
+				!containsUnboundVariableNamed(expr->expr->expr, expr->name, NULL)
+			) {
 				return etaReduce(expr->expr->expr);
 			}
 
@@ -691,7 +656,7 @@ LC_EXPR * etaReduce(LC_EXPR * expr) {
 	return NULL;
 }
 
-BOOL areIsomorphic(LC_EXPR * expr1, LC_EXPR * expr2) {
+/* BOOL areIsomorphic(LC_EXPR * expr1, LC_EXPR * expr2) {
 	const int bufSize = 64;
 	char buf1[bufSize];
 	char buf2[bufSize];
@@ -700,29 +665,16 @@ BOOL areIsomorphic(LC_EXPR * expr1, LC_EXPR * expr2) {
 	getDeBruijnIndex(expr2, buf2, bufSize);
 
 	return strlen(buf1) > 0 && !strcmp(buf1, buf2);
-}
+} */
 
 /*
-// α-conversion
-renameBoundVariable(newName: string, oldName: string): ILCExpression; // Alpha-conversion
+- δ-reduction (delta-reduction) for extended Lambda calculus: the reduction of
+constant arithmetic expressions; e.g. ((+ 2) 3) δ-> 5
 
-// β-reduction
-isBetaReducible(): boolean;
-betaReduce(options?: ILCBetaReductionOptions): ILCExpression;
-
-// δ-reduction for extended Lambda calculus; e.g. ((+ 2) 3) δ-> 5
-deltaReduce(): ILCExpression;
-
-// η-reduction: Reduce λx.(f x) to f if x does not appear free in f.
-etaReduce(): ILCExpression;
-
-// κ-reduction is the reduction of the SKI combinators (?)
+- κ-reduction (kappa-reduction) is the reduction of the SKI combinators (?)
  */
 
-/* X TODO: Delta-reduction δ (reduction of constant arithmetic exprs) */
-/* TODO? : Kappa-reduction κ */
-
-LC_EXPR * parseExpression(CharSource * cs) {
+static LC_EXPR * parseExpression(CharSource * cs) {
 	char dstBuf[maxStringValueLength];
 	int c = getNextChar(cs);
 
@@ -730,29 +682,24 @@ LC_EXPR * parseExpression(CharSource * cs) {
 		return NULL;
 	/*} else if (c == 'λ') { */ /* error: character too large for enclosing character literal type */
 	} else if (c == '\\') {
-		char argName[maxStringValueLength];
 
-		if (getIdentifier(cs, argName, maxStringValueLength) == 0) {
+		if (getIdentifier(cs, dstBuf, maxStringValueLength) == 0) {
 			return NULL;
 		}
 
-		/* Consume . */
-
-		if (getIdentifier(cs, dstBuf, maxStringValueLength) == 0 || strcmp(dstBuf, ".")) {
+		if (!consumeStr(cs, ".")) {
 			fprintf(stderr, "parseExpression() : Error consuming '.'\n");
 			return NULL;
 		}
 
 		LC_EXPR * expr = parseExpression(cs);
 
-		return createLambdaExpr(argName, expr);
+		return createLambdaExpr(dstBuf, expr);
 	} else if (c == '(') {
 		LC_EXPR * expr = parseExpression(cs);
 		LC_EXPR * expr2 = parseExpression(cs);
 
-		/* Consume ) */
-
-		if (getIdentifier(cs, dstBuf, maxStringValueLength) == 0 || strcmp(dstBuf, ")")) {
+		if (!consumeStr(cs, ")")) {
 			fprintf(stderr, "parseExpression() : Error consuming ')'\n");
 			return NULL;
 		}
@@ -769,7 +716,7 @@ LC_EXPR * parseExpression(CharSource * cs) {
 	}
 }
 
-LC_EXPR * parse(char * str) {
+static LC_EXPR * parse(char * str) {
 	CharSource * cs = createCharSource(str);
 
 	LC_EXPR * parseTree = parseExpression(cs);
@@ -779,7 +726,7 @@ LC_EXPR * parse(char * str) {
 	return parseTree;
 }
 
-void printExpr(LC_EXPR * expr) {
+static void printExpr(LC_EXPR * expr) {
 
 	switch (expr->type) {
 		case lcExpressionType_Variable:
@@ -787,9 +734,7 @@ void printExpr(LC_EXPR * expr) {
 			break;
 
 		case lcExpressionType_LambdaExpr:
-			printf("λ");
-			printf("%s", expr->name);
-			printf(".");
+			printf("λ%s.", expr->name);
 			printExpr(expr->expr);
 			break;
 
@@ -806,7 +751,7 @@ void printExpr(LC_EXPR * expr) {
 	}
 }
 
-void parseAndReduce(char * str) {
+static void parseAndReduce(char * str) {
 	const int maxDepth = 50;
 
 	printf("\nInput: '%s'\n", str);
@@ -845,7 +790,7 @@ void parseAndReduce(char * str) {
 	printf("3) NumMemMgrRecords final: %d\n", getNumMemMgrRecords());
 }
 
-void runTests() {
+static void runTests() {
 	printf("\nRunning tests...\n");
 
 	/* initMemoryManagers(); */
