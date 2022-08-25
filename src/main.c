@@ -56,13 +56,12 @@ typedef struct MEMMGR_RECORD_STRUCT {
 	void * ptr;
 	struct MEMMGR_RECORD_STRUCT * next;
 } MEMMGR_RECORD;
-*/
 
 typedef struct {
 	void (*mark)(void * ptr);
 	void (*unmark)(void * ptr);
 	BOOL (*isMarked)(void * ptr);
-	/* MEMMGR_RECORD * memmgrRecords; */
+	/ * MEMMGR_RECORD * memmgrRecords; * /
 } MEMMGR;
 
 void markExpr(void * ptr) {
@@ -84,7 +83,7 @@ MEMMGR * createMemoryManager(void (*mark)(void * ptr), void (*unmark)(void * ptr
 	mm->mark = mark;
 	mm->unmark = unmark;
 	mm->isMarked = isMarked;
-	/* mm->memmgrRecords = NULL; */
+	/ * mm->memmgrRecords = NULL; * /
 
 	return mm;
 }
@@ -95,18 +94,12 @@ MEMMGR * stringSetMemMgr = NULL;
 
 void initMemoryManagers() {
 	exprMemMgr = createMemoryManager(markExpr, unmarkExpr, isExprMarked);
-	/* stringListMemMgr = createMemoryManager(...);
-	stringSetMemMgr = createMemoryManager(...); */
+	/ * stringListMemMgr = createMemoryManager(...);
+	stringSetMemMgr = createMemoryManager(...); * /
 }
+*/
 
-void terminateMemoryManagers() {
-
-	if (exprMemMgr != NULL) {
-		free(exprMemMgr);
-		exprMemMgr = NULL;
-		++numFrees;
-	}
-
+void generateMemoryManagementReport() {
 	printf("\nMemory management report:\n");
 	printf("  Expressions: %d mallocs, %d frees", numMallocs, numFrees);
 
@@ -120,7 +113,20 @@ void terminateMemoryManagers() {
 	printStringListMemMgrReport();
 }
 
-// **** Memory manager version 1 ****
+/*
+void terminateMemoryManagers() {
+
+	if (exprMemMgr != NULL) {
+		free(exprMemMgr);
+		exprMemMgr = NULL;
+		++numFrees;
+	}
+
+	generateMemoryManagementReport();
+}
+*/
+
+// **** BEGIN Memory manager version 1 ****
 
 typedef struct MEMMGR_RECORD_STRUCT {
 	LC_EXPR * expr;
@@ -208,6 +214,8 @@ void freeAllStructs() {
 	clearMarks();
 	freeUnmarkedStructs();
 }
+
+// **** END Memory manager version 1 ****
 
 // **** Create and Free functions ****
 
@@ -839,7 +847,7 @@ void parseAndReduce(char * str) {
 void runTests() {
 	printf("\nRunning tests...\n");
 
-	initMemoryManagers();
+	/* initMemoryManagers(); */
 
 	parseAndReduce("x");
 	parseAndReduce("\\x.x");
@@ -877,11 +885,10 @@ void runTests() {
 	parseAndReduce("(\\n.\\f.\\x.(((n \\g.\\h.(h (g f))) \\u.x) \\u.u) \\f.\\x.(f (f x)))"); /* pred(2) = 1 : Succeeds */
 	parseAndReduce("(\\n.\\f.\\x.(((n \\g.\\h.(h (g f))) \\u.x) \\u.u) \\f.\\x.(f (f (f x))))"); /* pred(3) = 2 : Succeeds */
 
-	/* ThAW 2022-08-24 : Memory is being leaked in the string sets */
-
 	/* parseAndReduce("( )"); */
 
-	terminateMemoryManagers();
+	/* terminateMemoryManagers(); */
+	generateMemoryManagementReport();
 
 	printf("\nDone.\n");
 }
@@ -889,6 +896,8 @@ void runTests() {
 /* **** The Main MoFo **** */
 
 int main(int argc, char * argv[]) {
+	/* TODO: Implement an REPL (a read-evaluate-print loop) */
+
 	BOOL enableTests = FALSE;
 	BOOL enableVersion = FALSE;
 	int i;
