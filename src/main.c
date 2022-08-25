@@ -59,7 +59,7 @@ static int numFrees = 0;
 
 static int generatedVariableNumber = 0;
 
-static LC_EXPR * betaReduce(LC_EXPR * expr, int maxDepth);
+static LC_EXPR * betaReduce(LC_EXPR * expr, int maxDepth, BetaReductionStrategy strategy);
 static LC_EXPR * etaReduce(LC_EXPR * expr);
 
 // **** Memory manager functions ****
@@ -541,6 +541,45 @@ static LC_EXPR * betaReduceCore(LC_EXPR * lambdaExpression, LC_EXPR * arg) {
 	return substituteForUnboundVariable(lambdaExpression->expr, lambdaExpression->name, arg);
 }
 
+/* static LC_EXPR * betaReduceFunctionCall_CallByName(LC_EXPR * expr, int maxDepth) {
+
+	if (maxDepth <= 0) {
+		return this;
+		// throw new Error('call.ts : betaReduceCallByName() : maxDepth <= 0');
+	}
+
+	const options = {
+		strategy: BetaReductionStrategy.CallByName,
+		generateNewVariableName,
+		maxDepth
+	};
+
+	// First, evaluate this.callee; if it does not evaluate to a LCLambdaExpression,
+	// then return.
+	const evaluatedCallee = this.callee.etaReduce().deltaReduce().betaReduce(options);
+
+	if (!isLCLambdaExpression(evaluatedCallee)) {
+		const result = new LCFunctionCall(
+			evaluatedCallee,
+			// Note: Simply using 'this.arg' as the second argument fails.
+			this.arg.deltaReduce().betaReduce(options)
+		);
+
+		return result;
+	}
+
+	// case cbn e1 of
+	// Lam (x, e) => cbn (subst e2 (Lam(x, e)))
+	// x := evaluatedCallee.arg
+	// e := evaluatedCallee.body
+
+	// Next, substitute this.arg in for the arg in the evaluated callee.
+
+	return this.betaReduceCore(evaluatedCallee, this.arg, generateNewVariableName)
+		.deltaReduce()
+		.betaReduce(options);
+} */
+
 static LC_EXPR * betaReduceFunctionCall_NormalOrder(LC_EXPR * expr, int maxDepth) {
 	/* normal - leftmost outermost; the most popular reduction strategy */
 
@@ -550,7 +589,8 @@ static LC_EXPR * betaReduceFunctionCall_NormalOrder(LC_EXPR * expr, int maxDepth
 
 	/* First, evaluate this.callee; if it does not evaluate
 	to a LCLambdaExpression, then return. */
-	LC_EXPR * evaluatedCallee = betaReduce(expr->expr, maxDepth);
+	/* TODO? : Should we replace expr->expr with etaReduce(expr->expr) here? */
+	LC_EXPR * evaluatedCallee = betaReduce(expr->expr, maxDepth, brsNormalOrder);
 
 	if (evaluatedCallee->type != lcExpressionType_LambdaExpr) {
 		/* The result is App(e1’’, nor e2),
@@ -559,10 +599,10 @@ static LC_EXPR * betaReduceFunctionCall_NormalOrder(LC_EXPR * expr, int maxDepth
 		and e1 = this.callee */
 
 		return createFunctionCall(
-			betaReduce(evaluatedCallee, maxDepth),
+			betaReduce(evaluatedCallee, maxDepth, brsNormalOrder),
 			/* Note: Simply using 'this.arg' (i.e. expr->expr2) as
 			the second argument fails. */
-			betaReduce(expr->expr2, maxDepth)
+			betaReduce(expr->expr2, maxDepth, brsNormalOrder)
 		);
 	}
 
@@ -571,15 +611,92 @@ static LC_EXPR * betaReduceFunctionCall_NormalOrder(LC_EXPR * expr, int maxDepth
 
 	return betaReduce(
 		betaReduceCore(evaluatedCallee, expr->expr2),
-		maxDepth
+		maxDepth,
+		brsNormalOrder
 	);
 }
 
-static LC_EXPR * betaReduce(LC_EXPR * expr, int maxDepth) {
+/* static LC_EXPR * betaReduceFunctionCall_CallByValue(LC_EXPR * expr, int maxDepth) {
+
+	if (maxDepth <= 0) {
+		return this;
+		// throw new Error('call.ts : betaReduceCallByValue() : maxDepth <= 0');
+	}
+
+	const options = {
+		strategy: BetaReductionStrategy.CallByValue,
+		generateNewVariableName,
+		maxDepth
+	};
+
+	// First, evaluate this.callee; if it does not evaluate to a LCLambdaExpression,
+	// then return.
+	const evaluatedCallee = this.callee.deltaReduce().betaReduce(options);
+	const evaluatedArg = this.arg.deltaReduce().betaReduce(options);
+
+	if (!isLCLambdaExpression(evaluatedCallee)) {
+		return new LCFunctionCall(evaluatedCallee, evaluatedArg);
+	}
+
+	// case cbv e1 of
+	// Lam (x, e) => cbv (subst (cbv e2) (Lam(x, e)))
+	// x := evaluatedCallee.arg
+	// e := evaluatedCallee.body
+
+	// Next, substitute evaluatedArg in for the arg in the evaluated callee.
+
+	return this.betaReduceCore(evaluatedCallee, this.arg, generateNewVariableName)
+		.deltaReduce()
+		.betaReduce(options);
+} */
+
+static LC_EXPR * betaReduceFunctionCall_ThAWHackForYCombinator(LC_EXPR * expr, int maxDepth) {
+
+	if (maxDepth <= 0) {
+		return expr; // This is needed to prevent unbounded recursion.
+		// throw new Error('call.ts : betaReduceThAWHackForYCombinator() : maxDepth <= 0');
+	}
+
+	/* const options = {
+		strategy: BetaReductionStrategy.ThAWHackForYCombinator,
+		generateNewVariableName,
+		maxDepth
+	}; */
+
+	/* First, evaluate this.callee; if it does not evaluate
+	to a LCLambdaExpression, then return. */
+	LC_EXPR * evaluatedCallee = betaReduce(etaReduce(expr->expr), maxDepth, brsThAWHackForYCombinator);
+
+	if (evaluatedCallee->type != lcExpressionType_LambdaExpr) {
+		/* The result is App(e1’’, nor e2),
+		where e1’’ = nor e1’ = ...
+		and e1’ = nor e1 = evaluatedCallee
+		and e1 = this.callee */
+
+		return createFunctionCall(
+			evaluatedCallee,
+			/* Note: Simply using 'this.arg' (i.e. expr->expr2) as
+			the second argument fails. */
+			betaReduce(expr->expr2, maxDepth, brsThAWHackForYCombinator)
+		);
+	}
+
+	/* Next, substitute this.arg (expr->expr2) in for the argument
+	in the evaluated callee. */
+
+	return betaReduce(
+		betaReduceCore(evaluatedCallee, expr->expr2),
+		maxDepth,
+		brsThAWHackForYCombinator
+	);
+}
+
+static LC_EXPR * betaReduce(LC_EXPR * expr, int maxDepth, BetaReductionStrategy strategy) {
 	/* β-reduction (beta-reduction) : In the call (\\x.body arg), replace all
 	free occurrences of x in body with arg. Rename free variables in arg where
 	necessary to prevent them from becoming bound inside body. */
-	BetaReductionStrategy strategy = brsDefault;
+
+	/* BetaReductionStrategy strategy = brsDefault; */
 
 	if (maxDepth <= 0) {
 		return expr;
@@ -601,7 +718,7 @@ static LC_EXPR * betaReduce(LC_EXPR * expr, int maxDepth) {
 					return expr;
 
 				default:
-					return createLambdaExpr(expr->name, betaReduce(expr->expr, maxDepth));
+					return createLambdaExpr(expr->name, betaReduce(expr->expr, maxDepth, strategy));
 			}
 
 			break;
@@ -611,6 +728,9 @@ static LC_EXPR * betaReduce(LC_EXPR * expr, int maxDepth) {
 			switch (strategy) {
 				case brsNormalOrder:
 					return betaReduceFunctionCall_NormalOrder(expr, maxDepth);
+
+				case brsThAWHackForYCombinator:
+					return betaReduceFunctionCall_ThAWHackForYCombinator(expr, maxDepth);
 
 				default:
 					return NULL;
@@ -774,7 +894,7 @@ static void parseAndReduce(char * str) {
 
 	printf("Expr type = %d\nDeBruijn index: %s\n", parseTree->type, buf);
 
-	LC_EXPR * reducedExpr = betaReduce(parseTree, maxDepth);
+	LC_EXPR * reducedExpr = betaReduce(parseTree, maxDepth, brsDefault);
 
 	LC_EXPR * stillInUse[] = { reducedExpr, NULL };
 
@@ -830,6 +950,23 @@ static void runTests() {
 	parseAndReduce("(\\n.\\f.\\x.(((n \\g.\\h.(h (g f))) \\u.x) \\u.u) \\f.\\x.(f x))"); /* pred(1) = 0 : Succeeds */
 	parseAndReduce("(\\n.\\f.\\x.(((n \\g.\\h.(h (g f))) \\u.x) \\u.u) \\f.\\x.(f (f x)))"); /* pred(2) = 1 : Succeeds */
 	parseAndReduce("(\\n.\\f.\\x.(((n \\g.\\h.(h (g f))) \\u.x) \\u.u) \\f.\\x.(f (f (f x))))"); /* pred(3) = 2 : Succeeds */
+
+	/* TODO: */
+	/* integerToChurchNumeral Test 1 */
+	/* churchNumeralToInteger Test 1 */
+	/* Church Numerals And Test 1 */
+	/* Church Numerals Or Test 1 */
+	/* Church Numerals Addition Test 1 */
+	/* Church Numerals Addition Test 2 */
+	/* Church Numerals Multiplication Test 1 */
+	/* Church Numerals isZero Test 1 */
+
+	/* Y combinator test 1 */
+	/* This Y combinator test succeeds via the CallByName strategy only... */
+	/* or is it ThAWHackForYCombinator ? */
+	/* const strYCombinator = 'λa.(λb.(a (b b)) λb.(a (b b)))'; */
+
+	/*  */
 
 	/* parseAndReduce("( )"); */
 
