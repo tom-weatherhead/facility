@@ -557,6 +557,9 @@ LC_EXPR * betaReduceCore(LC_EXPR * lambdaExpression, LC_EXPR * arg) {
 		}
 	}
 
+	freeStringSet(allVarNamesUnboundInArg);
+	allVarNamesUnboundInArg = NULL;
+
 	// Substitution:
 	// Replace all unbound occurrences of Lambda expression's formal parameter
 	// (lambdaExpression.arg) in the Lambda expression's body (lambdaExpression.body)
@@ -874,13 +877,11 @@ void printExpr(LC_EXPR * expr) {
 }
 
 void parseAndReduce(char * str) {
+	const int maxDepth = 50;
+
 	printf("\nInput: '%s'\n", str);
 
 	LC_EXPR * parseTree = parse(str);
-
-	/* LC_EXPR * reducedExpr = reduce(parseTree);
-
-	freeExpression(reducedExpr); */
 
 	if (parseTree == NULL) {
 		fprintf(stderr, "parse('%s') : parseExpression() returned NULL\n", str);
@@ -898,19 +899,22 @@ void parseAndReduce(char * str) {
 
 	printf("Expr type = %d\nDeBruijn index: %s\n", parseTree->type, buf);
 
-	LC_EXPR * etaReduction = etaReduce(parseTree);
+	LC_EXPR * reducedExpr = betaReduce(parseTree, maxDepth);
+
+	printf("reducedExpr: ");
+	printExpr(reducedExpr);
+	printf("\n");
+
+	/* LC_EXPR * etaReduction = etaReduce(parseTree);
 
 	printf("Eta reduction: ");
 	printExpr(etaReduction);
 	printf("\n");
 
-	/* freeExpr(etaReduction);
-	freeExpr(parseTree); */
-
 	LC_EXPR * fff[] = { etaReduction, NULL };
 
 	printf("1) NumMemMgrRecords: %d\n", getNumMemMgrRecords());
-	collectGarbage(fff);
+	collectGarbage(fff); */
 	printf("2) NumMemMgrRecords: %d\n", getNumMemMgrRecords());
 	freeAllStructs();
 	printf("3) NumMemMgrRecords: %d\n", getNumMemMgrRecords());
@@ -934,8 +938,11 @@ void runTests() {
 	parseAndReduce("\\x.\\y.y");
 
 	/* Eta-reduction test: */
-	parseAndReduce("\\f.\\x.(f x)"); /* -> \\f.f : Fails to reduce */
+	parseAndReduce("\\f.\\x.(f x)"); /* -> \\f.f : Succeeds */
 	parseAndReduce("\\x.(f x)"); /* -> f : Succeeds */
+
+	/* LambdaCalculus beta-reduction test 1 */
+	parseAndReduce("(\\x.x y)"); /* -> y : Succeeds */
 
 	terminateMemoryManagers();
 
