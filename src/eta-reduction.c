@@ -11,7 +11,7 @@
 #include "types.h"
 
 #include "string-set.h"
-#include "main.h"
+#include "create-and-destroy.h"
 
 BOOL containsUnboundVariableNamed(LC_EXPR * expr, char * varName, STRING_SET * boundVariableNames) {
 	BOOL result = FALSE;

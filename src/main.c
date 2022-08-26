@@ -37,11 +37,13 @@
 #include "boolean.h"
 
 #include "types.h"
+#include "create-and-destroy.h"
 
 #include "beta-reduction.h"
 #include "char-source.h"
 #include "de-bruijn.h"
 #include "string-set.h"
+#include "memory-manager.h"
 
 static int numMallocs = 0;
 static int numFrees = 0;
@@ -99,13 +101,15 @@ void initMemoryManagers() {
 
 void generateMemoryManagementReport() {
 	printf("\nMemory management report:\n");
-	printf("  Expressions: %d mallocs, %d frees", numMallocs, numFrees);
+	printf("  Main: %d mallocs, %d frees", numMallocs, numFrees);
 
 	if (numMallocs > numFrees) {
 		printf(" : **** LEAKAGE ****");
 	}
 
 	printf("\n");
+	printMemMgrSelfReport();
+	printCreateAndDestroyMemMgrReport();
 	printCharSourceMemMgrReport();
 	printStringSetMemMgrReport();
 	printStringListMemMgrReport();
@@ -123,164 +127,6 @@ void terminateMemoryManagers() {
 	generateMemoryManagementReport();
 }
 */
-
-// **** BEGIN Memory manager version 1 ****
-
-typedef struct MEMMGR_RECORD_STRUCT {
-	LC_EXPR * expr;
-	struct MEMMGR_RECORD_STRUCT * next;
-} MEMMGR_RECORD;
-
-MEMMGR_RECORD * memmgrRecords = NULL;
-
-int getNumMemMgrRecords() {
-	int n = 0;
-	MEMMGR_RECORD * mmRec = memmgrRecords;
-
-	while (mmRec != NULL) {
-		++n;
-		mmRec = mmRec->next;
-	}
-
-	return n;
-}
-
-void clearMarks() {
-	MEMMGR_RECORD * mmRec;
-
-	for (mmRec = memmgrRecords; mmRec != NULL; mmRec = mmRec->next) {
-		mmRec->expr->mark = 0;
-	}
-}
-
-void setMarksInExprTree(LC_EXPR * expr) {
-	/* Do this recursively */
-	expr->mark = 1;
-
-	if (expr->expr != NULL) {
-		setMarksInExprTree(expr->expr);
-	}
-
-	if (expr->expr2 != NULL) {
-		setMarksInExprTree(expr->expr2);
-	}
-}
-
-void freeUnmarkedStructs() {
-	MEMMGR_RECORD ** ppmmRec = &memmgrRecords;
-	MEMMGR_RECORD * mmRec = *ppmmRec;
-
-	while (mmRec != NULL) {
-
-		if (mmRec->expr->mark == 0) {
-			/* Free mmRec->expr. Do not free recursively. */
-			mmRec->expr->expr = NULL;
-			mmRec->expr->expr2 = NULL;
-			free(mmRec->expr);
-			++numFrees;
-			mmRec->expr = NULL;
-
-			/* Then free mmRec, preserving the integrity of the linked list */
-			MEMMGR_RECORD * nextmmRec = mmRec->next;
-
-			mmRec->expr = NULL;
-			mmRec->next = NULL;
-			free(mmRec);
-			++numFrees;
-			*ppmmRec = nextmmRec;
-		} else {
-			ppmmRec = &mmRec->next;
-		}
-
-		mmRec = *ppmmRec;
-	}
-}
-
-void collectGarbage(LC_EXPR * exprTreesToMark[]) {
-	int i;
-
-	clearMarks();
-
-	for (i = 0; exprTreesToMark[i] != NULL; ++i) {
-		setMarksInExprTree(exprTreesToMark[i]);
-	}
-
-	freeUnmarkedStructs();
-}
-
-void freeAllStructs() {
-	clearMarks();
-	freeUnmarkedStructs();
-}
-
-// **** END Memory manager version 1 ****
-
-// **** Create and Free functions ****
-
-LC_EXPR * createExpr(int type, char * name, LC_EXPR * expr, LC_EXPR * expr2) {
-
-	if (name != NULL && strlen(name) >= maxStringValueLength - 1) {
-		fprintf(stderr, "createExpr() : The name '%s' is too long.\n", name);
-		return NULL;
-	}
-
-	LC_EXPR * newExpr = (LC_EXPR *)malloc(sizeof(LC_EXPR));
-
-	++numMallocs;
-	newExpr->mark = 0;
-	newExpr->type = type;
-	memset(newExpr->name, 0, maxStringValueLength);
-
-	if (name != NULL) {
-		strcpy(newExpr->name, name);
-	}
-
-	newExpr->expr = expr;
-	newExpr->expr2 = expr2;
-
-	/* TODO: Add newExpr to memmgrRecords */
-	MEMMGR_RECORD * mmRec = (MEMMGR_RECORD *)malloc(sizeof(MEMMGR_RECORD));
-
-	++numMallocs;
-	mmRec->expr = newExpr;
-	mmRec->next = memmgrRecords;
-	memmgrRecords = mmRec;
-
-	return newExpr;
-}
-
-LC_EXPR * createVariable(char * name) {
-	return createExpr(lcExpressionType_Variable, name, NULL, NULL);
-}
-
-LC_EXPR * createLambdaExpr(char * argName, LC_EXPR * body) {
-	return createExpr(lcExpressionType_LambdaExpr, argName, body, NULL);
-}
-
-LC_EXPR * createFunctionCall(LC_EXPR * expr, LC_EXPR * expr2) {
-	return createExpr(lcExpressionType_FunctionCall, NULL, expr, expr2);
-}
-
-/* void freeExpr(LC_EXPR * expr) {
-	memset(expr->name, 0, maxStringValueLength);
-
-	/ * if (expr->expr != NULL) {
-		freeExpr(expr->expr);
-		expr->expr = NULL;
-	}
-
-	if (expr->expr2 != NULL) {
-		freeExpr(expr->expr2);
-		expr->expr2 = NULL;
-	} * /
-
-	/ * TODO? : Remove newExpr from memmgrRecords? Or just wait for garbage collection? * /
-
-	expr->expr = NULL;
-	expr->expr2 = NULL;
-	free(expr);
-	++numFrees;
-} */
 
 /* Domain Object Model functions */
 

@@ -13,7 +13,7 @@
 #include "beta-reduction.h"
 #include "string-set.h"
 #include "eta-reduction.h"
-#include "main.h"
+#include "create-and-destroy.h"
 
 static int generatedVariableNumber = 0;
 
