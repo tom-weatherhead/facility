@@ -12,6 +12,7 @@
 
 #include "beta-reduction.h"
 #include "string-set.h"
+#include "eta-reduction.h"
 #include "main.h"
 
 static int generatedVariableNumber = 0;
@@ -50,6 +51,25 @@ static BOOL containsBoundVariableNamed(LC_EXPR * expr, char * varName) {
 	}
 
 	return FALSE;
+}
+
+static LC_EXPR * substituteForUnboundVariable(LC_EXPR * expr, char * varName, LC_EXPR * replacementExpr) {
+
+	switch (expr->type) {
+		case lcExpressionType_Variable:
+			return !strcmp(expr->name, varName) ? replacementExpr : expr;
+
+		case lcExpressionType_LambdaExpr:
+			return !strcmp(expr->name, varName) ? expr : createLambdaExpr(expr->name, substituteForUnboundVariable(expr->expr, varName, replacementExpr));
+
+		case lcExpressionType_FunctionCall:
+			return createFunctionCall(substituteForUnboundVariable(expr->expr, varName, replacementExpr), substituteForUnboundVariable(expr->expr2, varName, replacementExpr));
+
+		default:
+			break;
+	}
+
+	return NULL;
 }
 
 static LC_EXPR * renameBoundVariable(LC_EXPR * expr, char * newName, char * oldName) {

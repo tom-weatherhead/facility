@@ -249,10 +249,6 @@ LC_EXPR * createExpr(int type, char * name, LC_EXPR * expr, LC_EXPR * expr2) {
 	return newExpr;
 }
 
-/* LC_EXPR * cloneExpr(LC_EXPR * expr) {
-	return createExpr(expr->type, expr->name, expr->expr, expr->expr2);
-} */
-
 LC_EXPR * createVariable(char * name) {
 	return createExpr(lcExpressionType_Variable, name, NULL, NULL);
 }
@@ -288,148 +284,7 @@ LC_EXPR * createFunctionCall(LC_EXPR * expr, LC_EXPR * expr2) {
 
 /* Domain Object Model functions */
 
-/* BOOL areEqual(LC_EXPR * expr1, LC_EXPR * expr2) {
-
-	if (expr1->type != expr2->type) {
-		return FALSE;
-	}
-
-	switch (expr1->type) {
-		case lcExpressionType_Variable:
-			return !strcmp(expr1->name, expr2->name);
-
-		case lcExpressionType_LambdaExpr:
-			return !strcmp(expr1->name, expr2->name) && areEqual(expr1->expr, expr2->expr);
-
-		case lcExpressionType_FunctionCall:
-			return areEqual(expr1->expr, expr2->expr) && areEqual(expr2->expr, expr2->expr2);
-
-		default:
-			break;
-	}
-
-	return FALSE;
-}
-
-BOOL containsVariableNamed(LC_EXPR * expr, char * varName) {
-
-	switch (expr->type) {
-		case lcExpressionType_Variable:
-			return !strcmp(expr->name, varName);
-
-		case lcExpressionType_LambdaExpr:
-			return !strcmp(expr->name, varName) || containsVariableNamed(expr->expr, varName);
-
-		case lcExpressionType_FunctionCall:
-			return containsVariableNamed(expr->expr, varName) || containsVariableNamed(expr->expr2, varName);
-
-		default:
-			break;
-	}
-
-	return FALSE;
-} */
-
-BOOL containsUnboundVariableNamed(LC_EXPR * expr, char * varName, STRING_SET * boundVariableNames) {
-	BOOL result = FALSE;
-	STRING_SET * newStringSet = NULL;
-
-	switch (expr->type) {
-		case lcExpressionType_Variable:
-			return !strcmp(expr->name, varName) && !stringSetContains(boundVariableNames, varName);
-
-		case lcExpressionType_LambdaExpr:
-			/* This lambda expression binds the variable expr->name */
-			/* Create the set: boundVariableNames union { expr->name } */
-
-			if (!stringSetContains(boundVariableNames, expr->name)) {
-				newStringSet = addStringToSet(expr->name, boundVariableNames);
-				boundVariableNames = newStringSet;
-			}
-
-			result = containsUnboundVariableNamed(expr->expr, varName, boundVariableNames);
-
-			/* If we allocated any memory by calling addStringToList() above, then free it now */
-
-			if (newStringSet != NULL) {
-				newStringSet->next = NULL;
-				freeStringSet(newStringSet);
-			}
-
-			return result;
-
-		case lcExpressionType_FunctionCall:
-			return containsUnboundVariableNamed(expr->expr, varName, boundVariableNames) || containsUnboundVariableNamed(expr->expr2, varName, boundVariableNames);
-
-		default:
-			break;
-	}
-
-	return FALSE;
-}
-
-LC_EXPR * substituteForUnboundVariable(LC_EXPR * expr, char * varName, LC_EXPR * replacementExpr) {
-
-	switch (expr->type) {
-		case lcExpressionType_Variable:
-			return !strcmp(expr->name, varName) ? replacementExpr : expr;
-
-		case lcExpressionType_LambdaExpr:
-			return !strcmp(expr->name, varName) ? expr : createLambdaExpr(expr->name, substituteForUnboundVariable(expr->expr, varName, replacementExpr));
-
-		case lcExpressionType_FunctionCall:
-			return createFunctionCall(substituteForUnboundVariable(expr->expr, varName, replacementExpr), substituteForUnboundVariable(expr->expr2, varName, replacementExpr));
-
-		default:
-			break;
-	}
-
-	return NULL;
-}
-
-LC_EXPR * etaReduce(LC_EXPR * expr) {
-	/* η-reduction (eta-reduction) : Reduce λx.(f x) to f if x does not appear
-	free in f. */
-
-	switch (expr->type) {
-		case lcExpressionType_Variable:
-			return expr;
-
-		case lcExpressionType_LambdaExpr:
-
-			if (
-				expr->expr->type == lcExpressionType_FunctionCall &&
-				expr->expr->expr2->type == lcExpressionType_Variable &&
-				!strcmp(expr->expr->expr2->name, expr->name) &&
-				!containsUnboundVariableNamed(expr->expr->expr, expr->name, NULL)
-			) {
-				return etaReduce(expr->expr->expr);
-			}
-
-			return createLambdaExpr(expr->name, etaReduce(expr->expr));
-
-		case lcExpressionType_FunctionCall:
-			return createFunctionCall(etaReduce(expr->expr), etaReduce(expr->expr2));
-
-		default:
-			break;
-	}
-
-	return NULL;
-}
-
-/* BOOL areIsomorphic(LC_EXPR * expr1, LC_EXPR * expr2) {
-	const int bufSize = 64;
-	char buf1[bufSize];
-	char buf2[bufSize];
-
-	getDeBruijnIndex(expr1, buf1, bufSize);
-	getDeBruijnIndex(expr2, buf2, bufSize);
-
-	return strlen(buf1) > 0 && !strcmp(buf1, buf2);
-} */
-
-/*
+/* Types of graph reduction: alpha-conversion, beta, eta, ...
 - δ-reduction (delta-reduction) for extended Lambda calculus: the reduction of
 constant arithmetic expressions; e.g. ((+ 2) 3) δ-> 5
 
@@ -683,13 +538,23 @@ static void runTests() {
 	printf("\nDone.\n");
 }
 
+void execScriptInFile(char * filename) {
+	printf("\nTODO: Execute the script in the file '%s'\n", filename);
+}
+
+void readEvalPrintLoop() {
+	printf("\nTODO: Implement readEvalPrintLoop()\n");
+}
+
 /* **** The Main MoFo **** */
 
 int main(int argc, char * argv[]) {
 	/* TODO: Implement an REPL (a read-evaluate-print loop) */
+	/* TODO: Implement the execution of a script in a file */
 
 	BOOL enableTests = FALSE;
 	BOOL enableVersion = FALSE;
+	char * filename = NULL;
 	int i;
 
 	for (i = 1; i < argc; ++i) {
@@ -699,6 +564,8 @@ int main(int argc, char * argv[]) {
 			enableTests = TRUE;
 		} else if (!strcmp(argv[i], "-v")) {
 			enableVersion = TRUE;
+		} else if (filename == NULL && argv[i][0] != '-') {
+			filename = argv[i];
 		}
 	}
 
@@ -706,6 +573,10 @@ int main(int argc, char * argv[]) {
 		printf("\nFacility version 0.0.0\n");
 	} else if (enableTests) {
 		runTests();
+	} else if (filename != NULL) {
+		execScriptInFile(filename);
+	} else {
+		readEvalPrintLoop();
 	}
 
 	return 0; /* Zero (as a Unix exit code) means success. */
