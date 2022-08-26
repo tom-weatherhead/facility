@@ -122,4 +122,67 @@ void freeAllStructs() {
 
 /* **** END Memory manager version 1 **** */
 
+/* **** BEGIN Memory manager version 2 (TODO) **** */
+
+/*
+typedef struct MEMMGR_RECORD_STRUCT {
+	void * ptr;
+	struct MEMMGR_RECORD_STRUCT * next;
+} MEMMGR_RECORD;
+
+typedef struct {
+	void (*mark)(void * ptr);
+	void (*unmark)(void * ptr);
+	BOOL (*isMarked)(void * ptr);
+	/ * MEMMGR_RECORD * memmgrRecords; * /
+} MEMMGR;
+
+void markExpr(void * ptr) {
+	((LC_EXPR *)ptr)->mark = 1;
+}
+
+void unmarkExpr(void * ptr) {
+	((LC_EXPR *)ptr)->mark = 0;
+}
+
+BOOL isExprMarked(void * ptr) {
+	return ((LC_EXPR *)ptr)->mark != 0;
+}
+
+MEMMGR * createMemoryManager(void (*mark)(void * ptr), void (*unmark)(void * ptr), BOOL (*isMarked)(void * ptr)) {
+	MEMMGR * mm = (MEMMGR *)malloc(sizeof(MEMMGR));
+
+	++numMallocs;
+	mm->mark = mark;
+	mm->unmark = unmark;
+	mm->isMarked = isMarked;
+	/ * mm->memmgrRecords = NULL; * /
+
+	return mm;
+}
+
+MEMMGR * exprMemMgr = NULL;
+MEMMGR * stringListMemMgr = NULL;
+MEMMGR * stringSetMemMgr = NULL;
+
+void initMemoryManagers() {
+	exprMemMgr = createMemoryManager(markExpr, unmarkExpr, isExprMarked);
+	/ * stringListMemMgr = createMemoryManager(...);
+	stringSetMemMgr = createMemoryManager(...); * /
+}
+
+void terminateMemoryManagers() {
+
+	if (exprMemMgr != NULL) {
+		free(exprMemMgr);
+		exprMemMgr = NULL;
+		++numFrees;
+	}
+
+	generateMemoryManagementReport();
+}
+*/
+
+/* **** END Memory manager version 2 (TODO) **** */
+
 /* **** The End **** */

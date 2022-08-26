@@ -50,55 +50,6 @@ static int numFrees = 0;
 
 // **** Memory manager functions ****
 
-/* TODO: Memory manager version 2:
-
-typedef struct MEMMGR_RECORD_STRUCT {
-	void * ptr;
-	struct MEMMGR_RECORD_STRUCT * next;
-} MEMMGR_RECORD;
-
-typedef struct {
-	void (*mark)(void * ptr);
-	void (*unmark)(void * ptr);
-	BOOL (*isMarked)(void * ptr);
-	/ * MEMMGR_RECORD * memmgrRecords; * /
-} MEMMGR;
-
-void markExpr(void * ptr) {
-	((LC_EXPR *)ptr)->mark = 1;
-}
-
-void unmarkExpr(void * ptr) {
-	((LC_EXPR *)ptr)->mark = 0;
-}
-
-BOOL isExprMarked(void * ptr) {
-	return ((LC_EXPR *)ptr)->mark != 0;
-}
-
-MEMMGR * createMemoryManager(void (*mark)(void * ptr), void (*unmark)(void * ptr), BOOL (*isMarked)(void * ptr)) {
-	MEMMGR * mm = (MEMMGR *)malloc(sizeof(MEMMGR));
-
-	++numMallocs;
-	mm->mark = mark;
-	mm->unmark = unmark;
-	mm->isMarked = isMarked;
-	/ * mm->memmgrRecords = NULL; * /
-
-	return mm;
-}
-
-MEMMGR * exprMemMgr = NULL;
-MEMMGR * stringListMemMgr = NULL;
-MEMMGR * stringSetMemMgr = NULL;
-
-void initMemoryManagers() {
-	exprMemMgr = createMemoryManager(markExpr, unmarkExpr, isExprMarked);
-	/ * stringListMemMgr = createMemoryManager(...);
-	stringSetMemMgr = createMemoryManager(...); * /
-}
-*/
-
 void generateMemoryManagementReport() {
 	printf("\nMemory management report:\n");
 	printf("  Main: %d mallocs, %d frees", numMallocs, numFrees);
@@ -114,19 +65,6 @@ void generateMemoryManagementReport() {
 	printStringSetMemMgrReport();
 	printStringListMemMgrReport();
 }
-
-/*
-void terminateMemoryManagers() {
-
-	if (exprMemMgr != NULL) {
-		free(exprMemMgr);
-		exprMemMgr = NULL;
-		++numFrees;
-	}
-
-	generateMemoryManagementReport();
-}
-*/
 
 /* Domain Object Model functions */
 
