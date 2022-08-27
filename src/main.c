@@ -1045,6 +1045,7 @@ static void runTests() {
 
 int main(int argc, char * argv[]) {
 	/* TODO: Implement an REPL (a read-evaluate-print loop) */
+	/* TODO: Implement the execution of a script in a file */
 
 	BOOL enableTests = FALSE;
 	BOOL enableVersion = FALSE;
